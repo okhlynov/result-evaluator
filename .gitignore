@@ -91,3 +91,4 @@ workspace/
 development/issue-manager/.venv
 TASK.md
 src/runtime/engine.py
+CLAUDE.md
