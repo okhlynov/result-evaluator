@@ -45,6 +45,159 @@ uv run result-evaluator
 
 ## Usage
 
+### Sample YAML Test Case
+
+Create a test scenario in YAML format:
+
+```yaml
+case:
+  id: example_test
+  description: Example test scenario
+  tags: [api, validation]
+input:
+  user_id: 12345
+  query: "test data"
+run:
+  kind: python
+  target: tests.fixtures.dummy_inference
+  timeout_ms: 5000
+asserts:
+  - path: $.status
+    op: equals
+    expected: success
+  - path: $.count
+    op: equals
+    expected: 42
+```
+
+### Running Scenarios
+
+```python
+import yaml
+from dsl.models import Scenario
+from runtime.engine import Engine
+
+# Load test case from YAML
+with open("test_case.yaml") as f:
+    yaml_data = yaml.safe_load(f)
+    test_case = Scenario.model_validate(yaml_data)
+
+# Run the test
+engine = Engine()
+result = engine.run_test(test_case)
+
+# Check results
+print(f"Status: {result['status']}")  # PASS, FAIL, or ERROR
+print(f"Case ID: {result['case_id']}")
+for assert_result in result['asserts']:
+    status = "✓" if assert_result['ok'] else "✗"
+    print(f"  {status} Assert {assert_result['index']}: {assert_result['message']}")
+```
+
+### Available Operators
+
+#### `exists` - Check if value exists and is not empty
+
+```yaml
+asserts:
+  - path: $.user.name
+    op: exists
+```
+
+#### `equals` - Strict equality check
+
+```yaml
+asserts:
+  - path: $.status
+    op: equals
+    expected: success
+  - path: $.count
+    op: equals
+    expected: 42
+```
+
+#### `contains` - Check if element is in string or list
+
+```yaml
+asserts:
+  # String contains
+  - path: $.message
+    op: contains
+    expected: "error"
+  # List contains
+  - path: $.tags
+    op: contains
+    expected: "production"
+```
+
+#### `length_ge` - Check if length is greater than or equal
+
+```yaml
+asserts:
+  - path: $.results
+    op: length_ge
+    expected: 10
+  - path: $.name
+    op: length_ge
+    expected: 5
+```
+
+#### `match_regex` - Match against regular expression
+
+```yaml
+asserts:
+  - path: $.email
+    op: match_regex
+    expected: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+  - path: $.version
+    op: match_regex
+    expected: "^v\\d+\\.\\d+\\.\\d+$"
+```
+
+### Assertion Composition
+
+Combine assertions with logical operators:
+
+#### `all` - All nested rules must pass (AND logic)
+
+```yaml
+asserts:
+  - op: ""
+    all:
+      - path: $.status
+        op: equals
+        expected: success
+      - path: $.count
+        op: length_ge
+        expected: 1
+```
+
+#### `any` - At least one nested rule must pass (OR logic)
+
+```yaml
+asserts:
+  - op: ""
+    any:
+      - path: $.status
+        op: equals
+        expected: success
+      - path: $.status
+        op: equals
+        expected: completed
+```
+
+#### `not` - Invert the nested rule result
+
+```yaml
+asserts:
+  - op: ""
+    not:
+      path: $.error
+      op: exists
+```
+
+### CLI Usage
+
 ```bash
 # Run the CLI tool
 uv run result-evaluator
