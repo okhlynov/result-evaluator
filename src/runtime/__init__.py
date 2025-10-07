@@ -1,6 +1,12 @@
-"""Result evaluator package."""
+"""Runtime layer for test execution."""
 
+from runtime.engine import Engine
+from runtime.operators import OPERATORS, OpResult
+from runtime.query import eval_path
 
-def main() -> None:
-    """Main entry point for the result-evaluator CLI."""
-    print("Hello from result-evaluator!")
+__all__ = [
+    "Engine",
+    "OPERATORS",
+    "OpResult",
+    "eval_path",
+]

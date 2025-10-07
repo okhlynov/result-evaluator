@@ -1,6 +1,11 @@
-"""Result evaluator package."""
+"""DSL layer for test case definitions."""
 
+from dsl.models import AssertRule, RunConfig, Scenario
+from dsl.parser import load_test_case
 
-def main() -> None:
-    """Main entry point for the result-evaluator CLI."""
-    print("Hello from result-evaluator!")
+__all__ = [
+    "AssertRule",
+    "RunConfig",
+    "Scenario",
+    "load_test_case",
+]

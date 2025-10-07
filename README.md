@@ -17,7 +17,54 @@ Test framework to evaluate results with a complex structure against groundtruth 
 
 ## Installation
 
-### Installing uv
+### Using this package in your project
+
+Install `result-evaluator` as a dependency in your project:
+
+#### With uv (recommended)
+
+```bash
+# From GitHub
+uv add git+https://github.com/okhlynov/result-evaluator.git
+
+# From local path (for development)
+uv add --editable /path/to/result-evaluator
+
+# From PyPI (once published)
+uv add result-evaluator
+```
+
+#### With Poetry
+
+```bash
+# From GitHub
+poetry add git+https://github.com/okhlynov/result-evaluator.git
+
+# From local path (for development)
+poetry add --editable /path/to/result-evaluator
+
+# From PyPI (once published)
+poetry add result-evaluator
+```
+
+#### With pip
+
+```bash
+# From GitHub
+pip install git+https://github.com/okhlynov/result-evaluator.git
+
+# From local path (for development)
+pip install -e /path/to/result-evaluator
+
+# From PyPI (once published)
+pip install result-evaluator
+```
+
+### Development setup
+
+If you want to contribute or modify this project:
+
+#### Installing uv
 
 If you don't have uv installed:
 
@@ -29,11 +76,11 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-### Installing the project
+#### Clone and setup
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/okhlynov/result-evaluator.git
 cd result-evaluator
 
 # Install dependencies (creates .venv automatically)
@@ -73,14 +120,10 @@ asserts:
 ### Running Scenarios
 
 ```python
-import yaml
-from dsl.models import Scenario
-from runtime.engine import Engine
+from result_evaluator import Engine, load_test_case
 
-# Load test case from YAML
-with open("test_case.yaml") as f:
-    yaml_data = yaml.safe_load(f)
-    test_case = Scenario.model_validate(yaml_data)
+# Load test case from YAML file
+test_case = load_test_case("test_case.yaml")
 
 # Run the test
 engine = Engine()
@@ -92,6 +135,22 @@ print(f"Case ID: {result['case_id']}")
 for assert_result in result['asserts']:
     status = "✓" if assert_result['ok'] else "✗"
     print(f"  {status} Assert {assert_result['index']}: {assert_result['message']}")
+```
+
+Or with manual YAML parsing:
+
+```python
+import yaml
+from result_evaluator import Scenario, Engine
+
+# Load test case from YAML
+with open("test_case.yaml") as f:
+    yaml_data = yaml.safe_load(f)
+    test_case = Scenario.model_validate(yaml_data)
+
+# Run the test
+engine = Engine()
+result = engine.run_test(test_case)
 ```
 
 ### Available Operators
