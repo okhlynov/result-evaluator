@@ -1,6 +1,8 @@
-"""Tests for runtime TestEngine.eval_assert method."""
+"""Tests for runtime TestEngine methods."""
 
-from dsl.models import AssertRule
+import pytest
+
+from dsl.models import AssertRule, RunConfig
 from runtime.engine import TestEngine
 
 
@@ -239,3 +241,67 @@ def test_eval_assert_all_nested_composition() -> None:
 
     assert ok is True
     assert message == "All checks passed"
+
+
+def test_run_inference_python_success() -> None:
+    """Test run_inference with python kind returns constant dict."""
+    engine = TestEngine()
+    run_config = RunConfig(kind="python", target="tests.fixtures.dummy_inference")
+    input_data = {"test": "data"}
+
+    result = engine.run_inference(run_config, input_data)
+
+    assert result == {
+        "status": "success",
+        "result": "dummy_output",
+        "count": 42,
+    }
+
+
+def test_run_inference_python_with_input() -> None:
+    """Test run_inference properly passes input_data to target function."""
+    engine = TestEngine()
+    run_config = RunConfig(kind="python", target="tests.fixtures.echo_inference")
+    input_data = {"key": "value", "number": 123}
+
+    result = engine.run_inference(run_config, input_data)
+
+    assert result["status"] == "success"
+    assert result["input_received"] == input_data
+
+
+def test_run_inference_invalid_module() -> None:
+    """Test run_inference raises error when module path doesn't exist."""
+    engine = TestEngine()
+    run_config = RunConfig(
+        kind="python", target="nonexistent.module.some_function"
+    )
+    input_data = {}
+
+    with pytest.raises(ModuleNotFoundError):
+        engine.run_inference(run_config, input_data)
+
+
+def test_run_inference_invalid_function() -> None:
+    """Test run_inference raises error when function doesn't exist in module."""
+    engine = TestEngine()
+    run_config = RunConfig(kind="python", target="tests.fixtures.nonexistent_func")
+    input_data = {}
+
+    with pytest.raises(AttributeError):
+        engine.run_inference(run_config, input_data)
+
+
+def test_run_inference_unsupported_kind() -> None:
+    """Test run_inference raises NotImplementedError for unsupported run kinds."""
+    engine = TestEngine()
+
+    # Test with 'http' kind
+    run_config_http = RunConfig(kind="http", target="http://example.com/api")
+    with pytest.raises(NotImplementedError, match="Run kind 'http' not implemented"):
+        engine.run_inference(run_config_http, {})
+
+    # Test with 'file' kind
+    run_config_file = RunConfig(kind="file", target="/path/to/file.json")
+    with pytest.raises(NotImplementedError, match="Run kind 'file' not implemented"):
+        engine.run_inference(run_config_file, {})
