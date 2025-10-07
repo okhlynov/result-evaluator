@@ -1,0 +1,113 @@
+[project]
+name = "result-evaluator"
+version = "0.1.0"
+description = "A tool for evaluating and analyzing results"
+readme = "README.md"
+authors = [
+    { name = "Hlinov Oleg", email = "o.hlinov@yandex.ru" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+result-evaluator = "result_evaluator:main"
+
+[build-system]
+requires = ["uv_build>=0.8.24,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.13.1",
+    "pyright>=1.1.390",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+# Same as Black
+line-length = 88
+indent-width = 4
+
+# Assume Python 3.12+
+target-version = "py312"
+
+# Exclude common directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pycache__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "development",
+]
+
+[tool.ruff.lint]
+# Enable modern Python linting rules
+select = [
+    "E4",   # pycodestyle errors (subset)
+    "E7",   # pycodestyle errors (subset)
+    "E9",   # pycodestyle errors (subset)
+    "F",    # Pyflakes
+    "B",    # flake8-bugbear
+    "I",    # isort
+    "UP",   # pyupgrade (modernize Python syntax)
+    "FA",   # flake8-future-annotations
+    "ANN",  # flake8-annotations (require type annotations)
+]
+
+ignore = [
+    "E501",  # Line too long, handled by formatter
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Ignore annotation requirements for test files and __init__ methods
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN201"]  # Don't require return type annotations in test methods
+"*/__init__.py" = ["ANN204"]  # Don't require return type annotations for __init__
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings.
+docstring-code-format = true
