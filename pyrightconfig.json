@@ -12,6 +12,7 @@
   "typeCheckingMode": "standard",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
+  "reportMissingTypeArgument": "warning",
   "pythonVersion": "3.12",
   "pythonPlatform": "Linux"
 }
