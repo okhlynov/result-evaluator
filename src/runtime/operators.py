@@ -38,7 +38,7 @@ def op_equals(selection: Any, params: dict[str, Any]) -> OpResult:
     )
 
 
-def op_contains(selection: str | list, params: dict[str, Any]) -> OpResult:
+def op_contains(selection: str | list[Any], params: dict[str, Any]) -> OpResult:
     """Проверяет вхождение элемента"""
     expected = params["expected"]
 
