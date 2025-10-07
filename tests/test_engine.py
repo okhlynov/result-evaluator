@@ -273,9 +273,7 @@ def test_run_inference_python_with_input() -> None:
 def test_run_inference_invalid_module() -> None:
     """Test run_inference raises error when module path doesn't exist."""
     engine = TestEngine()
-    run_config = RunConfig(
-        kind="python", target="nonexistent.module.some_function"
-    )
+    run_config = RunConfig(kind="python", target="nonexistent.module.some_function")
     input_data = {}
 
     with pytest.raises(ModuleNotFoundError):
@@ -305,3 +303,65 @@ def test_run_inference_unsupported_kind() -> None:
     run_config_file = RunConfig(kind="file", target="/path/to/file.json")
     with pytest.raises(NotImplementedError, match="Run kind 'file' not implemented"):
         engine.run_inference(run_config_file, {})
+
+
+def test_run_test_success() -> None:
+    """Test run_test with all assertions passing."""
+    from dsl.models import TestCase
+
+    test_case = TestCase.model_validate(
+        {
+            "case": {"id": "test_success_case", "description": "Test success scenario"},
+            "input": {"test": "data"},
+            "run": {"kind": "python", "target": "tests.fixtures.dummy_inference"},
+            "asserts": [
+                {"path": "$.status", "op": "equals", "expected": "success"},
+                {"path": "$.count", "op": "equals", "expected": 42},
+            ],
+        }
+    )
+
+    engine = TestEngine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "test_success_case"
+    assert result["status"] == "PASS"
+    assert len(result["asserts"]) == 2
+    assert all(a["ok"] for a in result["asserts"])
+    assert result["result"] == {
+        "status": "success",
+        "result": "dummy_output",
+        "count": 42,
+    }
+
+
+def test_run_test_fail() -> None:
+    """Test run_test with at least one assertion failing."""
+    from dsl.models import TestCase
+
+    test_case = TestCase.model_validate(
+        {
+            "case": {"id": "test_fail_case", "description": "Test fail scenario"},
+            "input": {"test": "data"},
+            "run": {"kind": "python", "target": "tests.fixtures.dummy_inference"},
+            "asserts": [
+                {"path": "$.status", "op": "equals", "expected": "success"},
+                {"path": "$.count", "op": "equals", "expected": 100},
+            ],
+        }
+    )
+
+    engine = TestEngine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "test_fail_case"
+    assert result["status"] == "FAIL"
+    assert len(result["asserts"]) == 2
+    assert result["asserts"][0]["ok"] is True
+    assert result["asserts"][1]["ok"] is False
+    assert "Expected 100, got 42" in result["asserts"][1]["message"]
+    assert result["result"] == {
+        "status": "success",
+        "result": "dummy_output",
+        "count": 42,
+    }

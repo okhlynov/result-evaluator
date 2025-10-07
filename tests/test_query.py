@@ -54,38 +54,20 @@ def test_eval_path_non_existent() -> None:
 
 def test_eval_path_deeply_nested() -> None:
     """Test eval_path with deeply nested structure."""
-    doc = {
-        "company": {
-            "department": {
-                "team": {
-                    "lead": "Bob"
-                }
-            }
-        }
-    }
+    doc = {"company": {"department": {"team": {"lead": "Bob"}}}}
     result = eval_path(doc, "$.company.department.team.lead")
     assert result == "Bob"
 
 
 def test_eval_path_array_of_dicts() -> None:
     """Test eval_path with array of dictionaries."""
-    doc = {
-        "users": [
-            {"name": "Alice", "age": 30},
-            {"name": "Bob", "age": 25}
-        ]
-    }
+    doc = {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}
     result = eval_path(doc, "$.users[0].name")
     assert result == "Alice"
 
 
 def test_eval_path_multiple_matches() -> None:
     """Test eval_path with multiple matches returns list."""
-    doc = {
-        "users": [
-            {"name": "Alice", "age": 30},
-            {"name": "Bob", "age": 25}
-        ]
-    }
+    doc = {"users": [{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]}
     result = eval_path(doc, "$.users[*].name")
     assert result == ["Alice", "Bob"]
