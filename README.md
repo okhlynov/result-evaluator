@@ -379,18 +379,3 @@ This project leverages modern Python 3.12 features:
 - Modern type hints
 - Type statement for type aliases
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run all quality checks (format, lint, type check, test)
-5. Submit a pull request
-
-## License
-
-[Choose your license]
-
-## Authors
-
-- Hlinov Oleg <o.hlinov@cmit.mipt.ru>
