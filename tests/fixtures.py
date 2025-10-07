@@ -30,3 +30,24 @@ def echo_inference(input_data: dict) -> dict:
         "status": "success",
         "input_received": input_data,
     }
+
+
+def rich_inference(input_data: dict) -> dict:
+    """Inference function returning rich structured data for testing multiple operators.
+
+    Args:
+        input_data: Input data dict (passed but not used)
+
+    Returns:
+        Dict with various data types for comprehensive operator testing
+    """
+    return {
+        "status": "completed",
+        "message": "Processing complete with code-123",
+        "tags": ["python", "testing", "yaml"],
+        "metadata": {
+            "version": "1.0.0",
+            "author": "test-user",
+        },
+        "items": ["item1", "item2", "item3", "item4", "item5"],
+    }

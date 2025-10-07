@@ -1,9 +1,10 @@
-"""Tests for runtime TestEngine methods."""
+"""Tests for runtime Engine methods."""
 
 import pytest
+import yaml
 
-from dsl.models import AssertRule, RunConfig
-from runtime.engine import TestEngine
+from dsl.models import AssertRule, RunConfig, Scenario
+from runtime.engine import Engine
 
 
 def test_eval_assert_all_success() -> None:
@@ -20,7 +21,7 @@ def test_eval_assert_all_success() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is True
@@ -41,7 +42,7 @@ def test_eval_assert_all_fail_one() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is False
@@ -62,7 +63,7 @@ def test_eval_assert_all_fail_both() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is False
@@ -84,7 +85,7 @@ def test_eval_assert_any_success() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is True
@@ -105,7 +106,7 @@ def test_eval_assert_any_fail() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is False
@@ -125,7 +126,7 @@ def test_eval_assert_not_success() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is True
@@ -143,7 +144,7 @@ def test_eval_assert_not_fail() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is False
@@ -173,7 +174,7 @@ def test_eval_assert_all_complex_success() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is True
@@ -201,7 +202,7 @@ def test_eval_assert_all_complex_fail() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is False
@@ -236,7 +237,7 @@ def test_eval_assert_all_nested_composition() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     ok, message = engine.eval_assert(rule, document)
 
     assert ok is True
@@ -245,7 +246,7 @@ def test_eval_assert_all_nested_composition() -> None:
 
 def test_run_inference_python_success() -> None:
     """Test run_inference with python kind returns constant dict."""
-    engine = TestEngine()
+    engine = Engine()
     run_config = RunConfig(kind="python", target="tests.fixtures.dummy_inference")
     input_data = {"test": "data"}
 
@@ -260,7 +261,7 @@ def test_run_inference_python_success() -> None:
 
 def test_run_inference_python_with_input() -> None:
     """Test run_inference properly passes input_data to target function."""
-    engine = TestEngine()
+    engine = Engine()
     run_config = RunConfig(kind="python", target="tests.fixtures.echo_inference")
     input_data = {"key": "value", "number": 123}
 
@@ -272,7 +273,7 @@ def test_run_inference_python_with_input() -> None:
 
 def test_run_inference_invalid_module() -> None:
     """Test run_inference raises error when module path doesn't exist."""
-    engine = TestEngine()
+    engine = Engine()
     run_config = RunConfig(kind="python", target="nonexistent.module.some_function")
     input_data = {}
 
@@ -282,7 +283,7 @@ def test_run_inference_invalid_module() -> None:
 
 def test_run_inference_invalid_function() -> None:
     """Test run_inference raises error when function doesn't exist in module."""
-    engine = TestEngine()
+    engine = Engine()
     run_config = RunConfig(kind="python", target="tests.fixtures.nonexistent_func")
     input_data = {}
 
@@ -292,7 +293,7 @@ def test_run_inference_invalid_function() -> None:
 
 def test_run_inference_unsupported_kind() -> None:
     """Test run_inference raises NotImplementedError for unsupported run kinds."""
-    engine = TestEngine()
+    engine = Engine()
 
     # Test with 'http' kind
     run_config_http = RunConfig(kind="http", target="http://example.com/api")
@@ -307,9 +308,7 @@ def test_run_inference_unsupported_kind() -> None:
 
 def test_run_test_success() -> None:
     """Test run_test with all assertions passing."""
-    from dsl.models import TestCase
-
-    test_case = TestCase.model_validate(
+    test_case = Scenario.model_validate(
         {
             "case": {"id": "test_success_case", "description": "Test success scenario"},
             "input": {"test": "data"},
@@ -321,7 +320,7 @@ def test_run_test_success() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     result = engine.run_test(test_case)
 
     assert result["case_id"] == "test_success_case"
@@ -337,9 +336,7 @@ def test_run_test_success() -> None:
 
 def test_run_test_fail() -> None:
     """Test run_test with at least one assertion failing."""
-    from dsl.models import TestCase
-
-    test_case = TestCase.model_validate(
+    test_case = Scenario.model_validate(
         {
             "case": {"id": "test_fail_case", "description": "Test fail scenario"},
             "input": {"test": "data"},
@@ -351,7 +348,7 @@ def test_run_test_fail() -> None:
         }
     )
 
-    engine = TestEngine()
+    engine = Engine()
     result = engine.run_test(test_case)
 
     assert result["case_id"] == "test_fail_case"
@@ -365,3 +362,167 @@ def test_run_test_fail() -> None:
         "result": "dummy_output",
         "count": 42,
     }
+
+
+def test_run_test_from_yaml_success() -> None:
+    """Test run_test with test case loaded from YAML string."""
+    yaml_content = """
+case:
+  id: yaml_success_case
+  description: Test success scenario from YAML
+input:
+  test: data
+run:
+  kind: python
+  target: tests.fixtures.dummy_inference
+asserts:
+  - path: $.status
+    op: equals
+    expected: success
+  - path: $.count
+    op: equals
+    expected: 42
+"""
+
+    yaml_data = yaml.safe_load(yaml_content)
+    test_case = Scenario.model_validate(yaml_data)
+
+    engine = Engine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "yaml_success_case"
+    assert result["status"] == "PASS"
+    assert len(result["asserts"]) == 2
+    assert all(a["ok"] for a in result["asserts"])
+    assert result["result"] == {
+        "status": "success",
+        "result": "dummy_output",
+        "count": 42,
+    }
+
+
+def test_run_test_from_yaml_fail() -> None:
+    """Test run_test with test case from YAML where assertions fail."""
+    yaml_content = """
+case:
+  id: yaml_fail_case
+  description: Test fail scenario from YAML
+input:
+  test: data
+run:
+  kind: python
+  target: tests.fixtures.dummy_inference
+asserts:
+  - path: $.status
+    op: equals
+    expected: success
+  - path: $.count
+    op: equals
+    expected: 100
+"""
+
+    yaml_data = yaml.safe_load(yaml_content)
+    test_case = Scenario.model_validate(yaml_data)
+
+    engine = Engine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "yaml_fail_case"
+    assert result["status"] == "FAIL"
+    assert len(result["asserts"]) == 2
+    assert result["asserts"][0]["ok"] is True
+    assert result["asserts"][1]["ok"] is False
+    assert "Expected 100, got 42" in result["asserts"][1]["message"]
+
+
+def test_run_test_from_yaml_complex_composition() -> None:
+    """Test run_test with complex assertion compositions from YAML."""
+    yaml_content = """
+case:
+  id: yaml_complex_case
+  description: Test complex assertions with all/any/not from YAML
+input:
+  test: data
+run:
+  kind: python
+  target: tests.fixtures.dummy_inference
+asserts:
+  - op: ""
+    all:
+      - path: $.status
+        op: equals
+        expected: success
+      - op: ""
+        any:
+          - path: $.count
+            op: equals
+            expected: 42
+          - path: $.count
+            op: equals
+            expected: 100
+  - op: ""
+    not:
+      path: $.status
+      op: equals
+      expected: failure
+"""
+
+    yaml_data = yaml.safe_load(yaml_content)
+    test_case = Scenario.model_validate(yaml_data)
+
+    engine = Engine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "yaml_complex_case"
+    assert result["status"] == "PASS"
+    assert len(result["asserts"]) == 2
+    assert all(a["ok"] for a in result["asserts"])
+
+
+def test_run_test_from_yaml_multiple_operators() -> None:
+    """Test run_test with various operators from YAML."""
+    yaml_content = """
+case:
+  id: yaml_operators_case
+  description: Test multiple operators from YAML
+input:
+  test: data
+run:
+  kind: python
+  target: tests.fixtures.rich_inference
+asserts:
+  - path: $.status
+    op: exists
+  - path: $.status
+    op: equals
+    expected: completed
+  - path: $.message
+    op: contains
+    expected: code-123
+  - path: $.message
+    op: match_regex
+    expected: '^Processing.*code-\\d+$'
+  - path: $.tags
+    op: contains
+    expected: python
+  - path: $.tags
+    op: length_ge
+    expected: 3
+  - path: $.items
+    op: length_ge
+    expected: 5
+  - path: $.metadata.version
+    op: match_regex
+    expected: '^\\d+\\.\\d+\\.\\d+$'
+"""
+
+    yaml_data = yaml.safe_load(yaml_content)
+    test_case = Scenario.model_validate(yaml_data)
+
+    engine = Engine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "yaml_operators_case"
+    assert result["status"] == "PASS"
+    assert len(result["asserts"]) == 8
+    assert all(a["ok"] for a in result["asserts"])

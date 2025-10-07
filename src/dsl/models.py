@@ -25,7 +25,7 @@ class AssertRule(BaseModel):
     not_: "AssertRule | None" = Field(None, alias="not")
 
 
-class TestCase(BaseModel):
+class Scenario(BaseModel):
     """Полный тест-кейс"""
 
     case: dict[str, Any]  # id, description, tags
