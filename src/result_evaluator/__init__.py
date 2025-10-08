@@ -12,10 +12,10 @@ Example:
 """
 
 # DSL exports
-from dsl import AssertRule, RunConfig, Scenario, load_test_case
+from .dsl import AssertRule, RunConfig, Scenario, load_test_case
 
 # Runtime exports
-from runtime import OPERATORS, Engine, OpResult, eval_path
+from .runtime import OPERATORS, Engine, OpResult, eval_path
 
 __all__ = [
     # DSL

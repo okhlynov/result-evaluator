@@ -1,8 +1,8 @@
 """Runtime layer for test execution."""
 
-from runtime.engine import Engine
-from runtime.operators import OPERATORS, OpResult
-from runtime.query import eval_path
+from .engine import Engine
+from .operators import OPERATORS, OpResult
+from .query import eval_path
 
 __all__ = [
     "Engine",

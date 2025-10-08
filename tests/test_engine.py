@@ -3,8 +3,8 @@
 import pytest
 import yaml
 
-from dsl.models import AssertRule, RunConfig, Scenario
-from runtime.engine import Engine
+from result_evaluator.dsl.models import AssertRule, RunConfig, Scenario
+from result_evaluator.runtime.engine import Engine
 
 
 def test_eval_assert_all_success() -> None:
