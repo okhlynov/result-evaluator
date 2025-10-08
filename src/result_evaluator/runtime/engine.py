@@ -1,9 +1,9 @@
 import importlib
 from typing import Any
 
-from dsl.models import AssertRule, RunConfig, Scenario
-from runtime.operators import OPERATORS, OpResult
-from runtime.query import eval_path
+from ..dsl.models import AssertRule, RunConfig, Scenario
+from .operators import OPERATORS, OpResult
+from .query import eval_path
 
 
 class Engine:

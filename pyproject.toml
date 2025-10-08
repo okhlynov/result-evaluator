@@ -99,8 +99,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ANN201"]  # Don't require return type annotations in test methods
 "*/__init__.py" = ["ANN204"]  # Don't require return type annotations for __init__
-"src/runtime/operators.py" = ["ANN401"]  # Allow Any for generic operators
-"src/runtime/query.py" = ["ANN401"]  # Allow Any for JSONPath results
+"src/result_evaluator/runtime/operators.py" = ["ANN401"]  # Allow Any for generic operators
+"src/result_evaluator/runtime/query.py" = ["ANN401"]  # Allow Any for JSONPath results
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.

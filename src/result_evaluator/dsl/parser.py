@@ -2,7 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from dsl.models import Scenario
+from .models import Scenario
 
 
 def load_test_case(file_path: str | Path) -> Scenario:
