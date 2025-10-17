@@ -1,6 +1,6 @@
 """Tests for runtime operators."""
 
-from runtime.operators import (
+from result_evaluator.runtime.operators import (
     op_contains,
     op_equals,
     op_exists,

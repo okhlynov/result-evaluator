@@ -1,6 +1,6 @@
 """Tests for runtime query functions."""
 
-from runtime.query import eval_path
+from result_evaluator.runtime.query import eval_path
 
 
 def test_eval_path_empty_path() -> None:
