@@ -213,6 +213,37 @@ asserts:
     expected: "^v\\d+\\.\\d+\\.\\d+$"
 ```
 
+#### `sequence_in_order` - Check ordered sequence in string list
+
+Validates that expected string items appear in order within the top N items of a list. Additional items can appear between expected items, but the expected items must maintain their specified order.
+
+**Parameters:**
+- `expected` (list[str]): List of strings that must appear in order
+- `limit` (int): Number of top items from the selection to evaluate
+
+**Use case:** Validate event logs, sequential data, or process steps where order matters but noise is expected.
+
+```yaml
+asserts:
+  # Check that events occur in expected order within first 10 items
+  - path: $.events[*].type
+    op: sequence_in_order
+    expected:
+      - "START"
+      - "PROCESSING"
+      - "COMPLETE"
+    limit: 10
+
+  # Validate log messages appear in correct sequence
+  - path: $.logs[*].level
+    op: sequence_in_order
+    expected:
+      - "INFO"
+      - "WARNING"
+      - "ERROR"
+    limit: 20
+```
+
 ### Assertion Composition
 
 Combine assertions with logical operators:
