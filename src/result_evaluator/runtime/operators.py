@@ -89,21 +89,45 @@ def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
     # Validate required parameters
     if "expected" not in params:
         return OpResult(False, "Missing required parameter 'expected'", selection)
-    if "limit" not in params:
-        return OpResult(False, "Missing required parameter 'limit'", selection)
 
-    expected = params["expected"]
-    limit = params["limit"]
+    expected_obj = params["expected"]
 
     # Auto-convert single items to list
     if not isinstance(selection, list):
         selection = [str(selection)]
 
-    # Validate expected is a list
+    # Validate expected is a dict with 'data' and 'limit' fields
+    if not isinstance(expected_obj, dict):
+        return OpResult(
+            False,
+            f"Parameter 'expected' must be a dict with 'data' and 'limit' fields, got {type(expected_obj).__name__}",
+            selection,
+        )
+
+    # Validate 'data' field exists
+    if "data" not in expected_obj:
+        return OpResult(
+            False,
+            "Parameter 'expected' must contain 'data' field",
+            selection,
+        )
+
+    # Validate 'limit' field exists
+    if "limit" not in expected_obj:
+        return OpResult(
+            False,
+            "Parameter 'expected' must contain 'limit' field",
+            selection,
+        )
+
+    expected = expected_obj["data"]
+    limit = expected_obj["limit"]
+
+    # Validate expected data is a list
     if not isinstance(expected, list):
         return OpResult(
             False,
-            f"Parameter 'expected' must be a list, got {type(expected).__name__}",
+            f"Parameter 'expected.data' must be a list, got {type(expected).__name__}",
             selection,
         )
 
@@ -111,7 +135,7 @@ def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
     if not isinstance(limit, int) or limit <= 0:
         return OpResult(
             False,
-            f"Parameter 'limit' must be a positive integer, got {limit}",
+            f"Parameter 'expected.limit' must be a positive integer, got {limit}",
             selection,
         )
 
@@ -124,7 +148,7 @@ def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
         if not isinstance(item, str):
             return OpResult(
                 False,
-                f"All items in 'expected' must be strings, found {type(item).__name__}",
+                f"All items in 'expected.data' must be strings, found {type(item).__name__}",
                 selection,
             )
 
