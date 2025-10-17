@@ -10,7 +10,9 @@ class Engine:
     def __init__(self) -> None:
         self.results: list[dict[str, Any]] = []
 
-    def run_inference(self, run_config: RunConfig, input_data: dict[str, Any]) -> dict[str, Any]:
+    def run_inference(
+        self, run_config: RunConfig, input_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Выполняет инференс согласно run конфигурации"""
         if run_config.kind == "python":
             # Импортируем функцию по пути module.function
@@ -21,7 +23,9 @@ class Engine:
         else:
             raise NotImplementedError(f"Run kind '{run_config.kind}' not implemented")
 
-    def eval_assert(self, rule: AssertRule, document: dict[str, Any]) -> tuple[bool, str]:
+    def eval_assert(
+        self, rule: AssertRule, document: dict[str, Any]
+    ) -> tuple[bool, str]:
         """
         Выполняет одно утверждение.
         Возвращает (ok, message)

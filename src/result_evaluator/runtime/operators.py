@@ -84,6 +84,84 @@ def op_match_regex(selection: str, params: dict[str, Any]) -> OpResult:
     )
 
 
+def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
+    """Проверяет что список строк содержит ожидаемые элементы в заданном порядке"""
+    # Validate required parameters
+    if "expected" not in params:
+        return OpResult(False, "Missing required parameter 'expected'", selection)
+    if "limit" not in params:
+        return OpResult(False, "Missing required parameter 'limit'", selection)
+
+    expected = params["expected"]
+    limit = params["limit"]
+
+    # Auto-convert single items to list
+    if not isinstance(selection, list):
+        selection = [str(selection)]
+
+    # Validate expected is a list
+    if not isinstance(expected, list):
+        return OpResult(
+            False,
+            f"Parameter 'expected' must be a list, got {type(expected).__name__}",
+            selection,
+        )
+
+    # Validate limit is a positive integer
+    if not isinstance(limit, int) or limit <= 0:
+        return OpResult(
+            False,
+            f"Parameter 'limit' must be a positive integer, got {limit}",
+            selection,
+        )
+
+    # Empty expected list should pass
+    if len(expected) == 0:
+        return OpResult(True, None, selection)
+
+    # Validate all items in expected are strings
+    for item in expected:
+        if not isinstance(item, str):
+            return OpResult(
+                False,
+                f"All items in 'expected' must be strings, found {type(item).__name__}",
+                selection,
+            )
+
+    # Validate all items in selection are strings
+    for item in selection:
+        if not isinstance(item, str):
+            return OpResult(
+                False,
+                f"Selection must be a list of strings, found {type(item).__name__}",
+                selection,
+            )
+
+    # Get top N items from selection
+    items = selection[:limit]
+
+    # Check if expected items appear in order
+    exp_idx = 0 # номер ожидаемого элемента, которого ищем
+    for item in items:
+        if exp_idx < len(expected) and item == expected[exp_idx]: 
+            exp_idx += 1 # элемент встретился, берем следующий
+
+    # Success if all expected items were found in order
+    ok = exp_idx == len(expected)
+
+    if not ok:
+        if exp_idx == 0:
+            message = (
+                f"Expected item '{expected[0]}' not found within first {limit} items"
+            )
+        else:
+            message = f"Expected item '{expected[exp_idx]}' not found in order within first {limit} items"
+    else:
+        message = None
+
+    return OpResult(ok=ok, message=message, got=selection)
+
+
 # Реестр всех операторов
 OPERATORS: dict[str, Operator] = {
     "exists": op_exists,
@@ -91,4 +169,5 @@ OPERATORS: dict[str, Operator] = {
     "contains": op_contains,
     "length_ge": op_length_ge,
     "match_regex": op_match_regex,
+    "sequence_in_order": op_sequence_in_order,
 }
