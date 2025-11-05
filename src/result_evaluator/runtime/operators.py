@@ -66,7 +66,7 @@ def op_not_contains(selection: str | list[Any], params: dict[str, Any]) -> OpRes
         ok = expected not in selection
     else:
         return OpResult(
-            False, f"Cannot check 'contains' for {type(selection)}", selection
+            False, f"Cannot check 'op_not_contains' for {type(selection)}", selection
         )
 
     return OpResult(
@@ -209,6 +209,7 @@ OPERATORS: dict[str, Operator] = {
     "exists": op_exists,
     "equals": op_equals,
     "contains": op_contains,
+    "not_contains": op_not_contains,
     "length_ge": op_length_ge,
     "match_regex": op_match_regex,
     "sequence_in_order": op_sequence_in_order,

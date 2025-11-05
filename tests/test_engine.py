@@ -526,3 +526,56 @@ asserts:
     assert result["status"] == "PASS"
     assert len(result["asserts"]) == 8
     assert all(a["ok"] for a in result["asserts"])
+
+
+def test_run_test_from_yaml_not_contains() -> None:
+    """Test run_test with not_contains operator from YAML."""
+    yaml_content = """
+case:
+  id: yaml_not_contains_case
+  description: Test not_contains operator for strings and lists
+input:
+  test: data
+run:
+  kind: python
+  target: tests.fixtures.rich_inference
+asserts:
+  - path: $.message
+    op: not_contains
+    expected: error
+  - path: $.message
+    op: not_contains
+    expected: complete
+  - path: $.tags
+    op: not_contains
+    expected: production
+  - path: $.tags
+    op: not_contains
+    expected: testing
+"""
+
+    yaml_data = yaml.safe_load(yaml_content)
+    test_case = Scenario.model_validate(yaml_data)
+
+    engine = Engine()
+    result = engine.run_test(test_case)
+
+    assert result["case_id"] == "yaml_not_contains_case"
+    assert result["status"] == "FAIL"
+    assert len(result["asserts"]) == 4
+
+    # First assertion: message does NOT contain "error" -> should PASS
+    assert result["asserts"][0]["ok"] is True
+    assert result["asserts"][0]["message"] == "OK"
+
+    # Second assertion: message does NOT contain "complete" -> should FAIL
+    assert result["asserts"][1]["ok"] is False
+    assert "'complete' present in" in result["asserts"][1]["message"]
+
+    # Third assertion: tags do NOT contain "production" -> should PASS
+    assert result["asserts"][2]["ok"] is True
+    assert result["asserts"][2]["message"] == "OK"
+
+    # Fourth assertion: tags do NOT contain "testing" -> should FAIL
+    assert result["asserts"][3]["ok"] is False
+    assert "'testing' present in" in result["asserts"][3]["message"]

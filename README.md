@@ -189,6 +189,20 @@ asserts:
     expected: "production"
 ```
 
+#### `not_contains` - Check if element is not in string or list
+
+```yaml
+asserts:
+  # String contains
+  - path: $.message
+    op: not_contains
+    expected: "error"
+  # List contains
+  - path: $.tags
+    op: not_contains
+    expected: "production"
+```
+
 #### `length_ge` - Check if length is greater than or equal
 
 ```yaml
