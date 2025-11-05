@@ -26,7 +26,6 @@ def op_exists(selection: Any, _: dict[str, Any]) -> OpResult:
         ok=ok, message="Selection is empty or None" if not ok else None, got=selection
     )
 
-
 def op_equals(selection: Any, params: dict[str, Any]) -> OpResult:
     """Строгое равенство"""
     expected = params["expected"]
@@ -54,6 +53,25 @@ def op_contains(selection: str | list[Any], params: dict[str, Any]) -> OpResult:
     return OpResult(
         ok=ok,
         message=f"'{expected}' not found in {selection}" if not ok else None,
+        got=selection,
+    )
+    
+def op_not_contains(selection: str | list[Any], params: dict[str, Any]) -> OpResult:
+    """Проверяет отсутствие элемента"""
+    expected = params["expected"]
+
+    if isinstance(selection, str):
+        ok = expected not in selection
+    elif isinstance(selection, list):
+        ok = expected not in selection
+    else:
+        return OpResult(
+            False, f"Cannot check 'contains' for {type(selection)}", selection
+        )
+
+    return OpResult(
+        ok=ok,
+        message=f"'{expected}' present in {selection}" if not ok else None,
         got=selection,
     )
 

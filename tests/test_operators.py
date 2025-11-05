@@ -2,6 +2,7 @@
 
 from result_evaluator.runtime.operators import (
     op_contains,
+    op_not_contains,
     op_equals,
     op_exists,
     op_length_ge,
@@ -200,6 +201,38 @@ def test_op_contains_invalid_type() -> None:
     assert result.ok is False
     assert result.message == "Cannot check 'contains' for <class 'dict'>"
     assert result.got == {"a": 1}
+
+
+def test_op_not_contains_str_found() -> None:
+    """Test op_not_contains with substring found in string."""
+    result = op_not_contains("hello world", {"expected": "world"})
+    assert result.ok is False
+    assert result.message == "'world' present in hello world"
+    assert result.got == "hello world"
+
+
+def test_op_not_contains_str_not_found() -> None:
+    """Test op_not_contains with substring not found in string."""
+    result = op_not_contains("hello world", {"expected": "python"})
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == "hello world"
+
+
+def test_op_not_contains_list_found() -> None:
+    """Test op_not_contains with item found in list."""
+    result = op_not_contains([1, 2, 3], {"expected": 2})
+    assert result.ok is False
+    assert result.message == "'2' present in [1, 2, 3]"
+    assert result.got == [1, 2, 3]
+
+
+def test_op_not_contains_list_not_found() -> None:
+    """Test op_not_contains with item not found in list."""
+    result = op_not_contains([1, 2, 3], {"expected": 5})
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == [1, 2, 3]
 
 
 def test_op_length_ge_str_sufficient() -> None:
