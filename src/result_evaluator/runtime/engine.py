@@ -1,9 +1,12 @@
 import importlib
+import logging
 from typing import Any
 
 from ..dsl.models import AssertRule, RunConfig, Scenario
 from .operators import OPERATORS, OpResult
 from .query import eval_path
+
+logger = logging.getLogger(__name__)
 
 
 class Engine:
@@ -67,11 +70,13 @@ class Engine:
         """Выполняет один тест-кейс"""
         case_id = test_case.case.get("id", "unknown")
         print(f"\nRunning: {case_id}")
+        logger.info(f"Starting test case: {case_id}")
 
         try:
             # Шаг 1: Запускаем инференс
             result = self.run_inference(test_case.run, test_case.input)
             print("Inference completed")
+            logger.debug("Inference completed")
 
             # Шаг 2: Выполняем все проверки
             assert_results = []
@@ -92,13 +97,27 @@ class Engine:
             # Шаг 3: Определяем итоговый статус
             all_passed = all(r["ok"] for r in assert_results)
 
-            return {
+            run_result = {
                 "case_id": case_id,
                 "status": "PASS" if all_passed else "FAIL",
                 "asserts": assert_results,
                 "result": result,
             }
 
+            # Log the case run result with extra attribute
+            logger.info(
+                f"Test case completed: {case_id} - {run_result['status']}",
+                extra={"run_result": run_result},
+            )
+
+            return run_result
+
         except Exception as e:
             print(f"ERROR: {e}")
-            return {"case_id": case_id, "status": "ERROR", "error": str(e)}
+            error_result = {"case_id": case_id, "status": "ERROR", "error": str(e)}
+            logger.error(
+                f"Test case failed with error: {case_id}",
+                extra={"run_result": error_result},
+                exc_info=True,
+            )
+            return error_result
