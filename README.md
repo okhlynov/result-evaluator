@@ -169,6 +169,27 @@ engine = Engine()
 result = engine.run_test(test_case)
 ```
 
+### Operator-Specific Configuration
+
+Some operators support additional configuration through the `config` field. This allows you to customize operator behavior without modifying the core framework.
+
+**Configuration Validation:**
+- The `config` field is optional and defaults to `None`
+- Configuration validation happens at runtime when the operator is executed
+- Invalid or missing required config keys will result in assertion failure
+
+**Example with config:**
+```yaml
+asserts:
+  - op: llm_judge
+    path: $.answer
+    expected: "true"
+    config:
+      prompt: "Is {input} semantically equivalent to {expected}?"
+      system_prompt: "You are a fair judge. Respond only with true or false."
+      response_path: "$.verdict"
+```
+
 ### Available Operators
 
 #### `exists` - Check if value exists and is not empty
@@ -293,6 +314,22 @@ asserts:
       - path: $.count
         op: length_ge
         expected: 1
+```
+
+**With config:**
+```yaml
+asserts:
+  - op: ""
+    all:
+      - path: $.answer
+        op: llm_judge
+        expected: "true"
+        config:
+          prompt: "Is the answer correct?"
+          response_path: "$.verdict"
+      - path: $.confidence
+        op: length_ge
+        expected: 0.7
 ```
 
 #### `any` - At least one nested rule must pass (OR logic)
