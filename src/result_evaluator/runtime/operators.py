@@ -26,6 +26,7 @@ def op_exists(selection: Any, _: dict[str, Any]) -> OpResult:
         ok=ok, message="Selection is empty or None" if not ok else None, got=selection
     )
 
+
 def op_equals(selection: Any, params: dict[str, Any]) -> OpResult:
     """Строгое равенство"""
     expected = params["expected"]
@@ -55,7 +56,8 @@ def op_contains(selection: str | list[Any], params: dict[str, Any]) -> OpResult:
         message=f"'{expected}' not found in {selection}" if not ok else None,
         got=selection,
     )
-    
+
+
 def op_not_contains(selection: str | list[Any], params: dict[str, Any]) -> OpResult:
     """Проверяет отсутствие элемента"""
     expected = params["expected"]
@@ -183,10 +185,10 @@ def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
     items = selection[:limit]
 
     # Check if expected items appear in order
-    exp_idx = 0 # номер ожидаемого элемента, которого ищем
+    exp_idx = 0  # номер ожидаемого элемента, которого ищем
     for item in items:
-        if exp_idx < len(expected) and item == expected[exp_idx]: 
-            exp_idx += 1 # элемент встретился, берем следующий
+        if exp_idx < len(expected) and item == expected[exp_idx]:
+            exp_idx += 1  # элемент встретился, берем следующий
 
     # Success if all expected items were found in order
     ok = exp_idx == len(expected)
