@@ -1,13 +1,13 @@
 """
 LLM operations runtime types.
 """
+
 import functools
 import inspect
 import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ParamSpec, TypeVar
 
 from openai import (
     APIConnectionError,
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class Result[T]:
     """
     Generic result type for LLM operations.
-    
+
     Attributes:
         success: Whether the operation was successful
         value: The successful result value (if success=True)
@@ -52,7 +52,7 @@ class Result[T]:
     def fail(cls, error_type: str, message: str) -> "Result[T]":
         """
         Create an error result.
-        
+
         Args:
             error_type: One of "connection", "response", "validation" (or custom)
             message: Human-readable error description
@@ -60,23 +60,21 @@ class Result[T]:
         return cls(success=False, error=message, error_type=error_type)
 
 
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-def with_llm_error_handling(func: Callable[P, Result[R]]) -> Callable[P, Result[R]]:
-    """Decorator to handle LLM-related exceptions."""
+def with_llm_error_handling[**P, R](
+    func: Callable[P, Result[R]],
+) -> Callable[P, Result[R]]:
+    """Decorator to handle LLM-related exceptions and convert them to Result."""
 
     @functools.wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> Result[R]:
-        # Bind arguments to access 'config' for error messages
+        # Bind arguments to access inputs for error messages
         sig = inspect.signature(func)
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
+
         config: LLMConfig | None = bound.arguments.get("config")
 
-        # Fallback if config isn't found or is None (though call_llm ensures it's set)
-        # This prevents the handler from crashing if config is missing
+        # Fallback values for error messages
         timeout_val = config.timeout if config else "unknown"
         model_val = config.model if config else "unknown"
 
@@ -84,16 +82,22 @@ def with_llm_error_handling(func: Callable[P, Result[R]]) -> Callable[P, Result[
             return func(*args, **kwargs)
         except AuthenticationError:
             logger.error("Authentication failed", exc_info=True)
-            return Result.fail("connection", "Authentication failed: check JUDGE_LLM_API_KEY")
+            return Result.fail(
+                "connection", "Authentication failed: check JUDGE_LLM_API_KEY"
+            )
         except APITimeoutError:
             logger.error("Request timeout", exc_info=True)
             return Result.fail("connection", f"Request timeout after {timeout_val}s")
         except APIConnectionError:
             logger.error("Connection failed", exc_info=True)
-            return Result.fail("connection", "Connection failed: check network/endpoint")
+            return Result.fail(
+                "connection", "Connection failed: check network/endpoint"
+            )
         except RateLimitError:
             logger.error("Rate limit exceeded", exc_info=True)
-            return Result.fail("connection", "Rate limit exceeded: wait before retrying")
+            return Result.fail(
+                "connection", "Rate limit exceeded: wait before retrying"
+            )
         except NotFoundError:
             logger.error(f"Model '{model_val}' not found", exc_info=True)
             return Result.fail("connection", f"Model '{model_val}' not found")
@@ -110,6 +114,58 @@ def with_llm_error_handling(func: Callable[P, Result[R]]) -> Callable[P, Result[
     return wrapper
 
 
+def with_llm_logging[**P, R](
+    func: Callable[P, Result[R]],
+) -> Callable[P, Result[R]]:
+    """Decorator to log LLM call metrics and warnings."""
+
+    @functools.wraps(func)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> Result[R]:
+        # Bind arguments to access inputs for logging
+        sig = inspect.signature(func)
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+
+        config: LLMConfig | None = bound.arguments.get("config")
+        system_prompt = bound.arguments.get("system_prompt", "")
+        user_prompt = bound.arguments.get("user_prompt", "")
+        response_type = bound.arguments.get("response_type")
+
+        # Warning for large prompt
+        if len(system_prompt) + len(user_prompt) > 100_000:
+            logger.warning(
+                "Large prompt detected: %d characters",
+                len(system_prompt) + len(user_prompt),
+            )
+
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        if result.success and config:
+            logger.debug(
+                f"LLM call completed in {latency_ms}ms",
+                extra={
+                    "llm_call": {
+                        "model": config.model,
+                        "latency_ms": latency_ms,
+                        "system_prompt_length": len(system_prompt),
+                        "user_prompt_length": len(user_prompt),
+                        "response_type": (
+                            getattr(response_type, "__name__", str(response_type))
+                            if response_type is not None
+                            else "unknown"
+                        ),
+                    }
+                },
+            )
+
+        return result
+
+    return wrapper
+
+
+@with_llm_logging
 @with_llm_error_handling
 def _execute_llm_request[T](
     system_prompt: str,
@@ -118,14 +174,6 @@ def _execute_llm_request[T](
     config: LLMConfig,
 ) -> Result[T]:
     """Execute the OpenAI API request."""
-    if len(system_prompt) + len(user_prompt) > 100_000:
-        logger.warning(
-            "Large prompt detected: %d characters", 
-            len(system_prompt) + len(user_prompt)
-        )
-
-    start_time = time.time()
-
     client = OpenAI(
         api_key=config.api_key,
         base_url=config.endpoint,
@@ -140,19 +188,6 @@ def _execute_llm_request[T](
         ],
         response_format=response_type,
         max_tokens=config.max_tokens,
-    )
-    
-    latency_ms = int((time.time() - start_time) * 1000)
-    
-    logger.debug(
-        f"LLM call completed in {latency_ms}ms",
-        extra={"llm_call": {
-            "model": config.model,
-            "latency_ms": latency_ms,
-            "system_prompt_length": len(system_prompt),
-            "user_prompt_length": len(user_prompt),
-            "response_type": response_type.__name__
-        }}
     )
 
     parsed = completion.choices[0].message.parsed
@@ -185,11 +220,13 @@ def call_llm[T](
     """
     if not system_prompt or not system_prompt.strip():
         raise ValueError("system_prompt cannot be empty or whitespace-only")
-    
+
     if not user_prompt or not user_prompt.strip():
         raise ValueError("user_prompt cannot be empty or whitespace-only")
 
     if config is None:
         config = load_llm_config()
 
-    return _execute_llm_request(system_prompt, user_prompt, response_type, config=config)
+    return _execute_llm_request(
+        system_prompt, user_prompt, response_type, config=config
+    )
