@@ -344,7 +344,7 @@ def test_op_sequence_in_order_out_of_order() -> None:
     assert result.ok is False
     # When "A" is found, we look for "B" next, but "C" comes before "B"
     # So we find "B" second (skipping "C"), then we can't find "C" after that
-    assert "Expected item 'C' not found in order within first 3 items" in result.message
+    assert "Expected item 'C' not found in order within first 3 items" in (result.message or "")
     assert result.got == ["A", "C", "B"]
 
 
@@ -354,7 +354,7 @@ def test_op_sequence_in_order_missing_item() -> None:
         ["A", "B", "X", "Y", "Z"], {"expected": {"data": ["A", "B", "C"], "limit": 4}}
     )
     assert result.ok is False
-    assert "Expected item 'C' not found in order within first 4 items" in result.message
+    assert "Expected item 'C' not found in order within first 4 items" in (result.message or "")
     assert result.got == ["A", "B", "X", "Y", "Z"]
 
 
@@ -392,7 +392,7 @@ def test_op_sequence_in_order_empty_selection() -> None:
     """Test op_sequence_in_order with empty selection and non-empty expected."""
     result = op_sequence_in_order([], {"expected": {"data": ["A", "B"], "limit": 10}})
     assert result.ok is False
-    assert "Expected item 'A' not found within first 10 items" in result.message
+    assert "Expected item 'A' not found within first 10 items" in (result.message or "")
     assert result.got == []
 
 
@@ -425,7 +425,7 @@ def test_op_sequence_in_order_non_string_in_selection() -> None:
     """Test op_sequence_in_order with non-string items in selection."""
     result = op_sequence_in_order([1, 2, 3], {"expected": {"data": ["A"], "limit": 3}})
     assert result.ok is False
-    assert "Selection must be a list of strings, found int" in result.message
+    assert "Selection must be a list of strings, found int" in (result.message or "")
     assert result.got == [1, 2, 3]
 
 
@@ -435,7 +435,7 @@ def test_op_sequence_in_order_non_string_in_expected() -> None:
         ["A", "B"], {"expected": {"data": [1, 2], "limit": 3}}
     )
     assert result.ok is False
-    assert "All items in 'expected.data' must be strings, found int" in result.message
+    assert "All items in 'expected.data' must be strings, found int" in (result.message or "")
     assert result.got == ["A", "B"]
 
 
@@ -447,7 +447,7 @@ def test_op_sequence_in_order_negative_limit() -> None:
     assert result.ok is False
     assert (
         "Parameter 'expected.limit' must be a positive integer, got -1"
-        in result.message
+        in (result.message or "")
     )
     assert result.got == ["A", "B"]
 
@@ -457,7 +457,7 @@ def test_op_sequence_in_order_zero_limit() -> None:
     result = op_sequence_in_order(["A", "B"], {"expected": {"data": ["A"], "limit": 0}})
     assert result.ok is False
     assert (
-        "Parameter 'expected.limit' must be a positive integer, got 0" in result.message
+        "Parameter 'expected.limit' must be a positive integer, got 0" in (result.message or "")
     )
     assert result.got == ["A", "B"]
 
