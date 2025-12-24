@@ -90,6 +90,22 @@ uv sync
 uv run result-evaluator
 ```
 
+## Configuration
+
+The framework uses environment variables to configure the LLM client (OpenAI-compatible).
+These variables use the default prefix `JUDGE_LLM_` but can be customized in code.
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `JUDGE_LLM_API_KEY` | OpenAI API key | Yes | - |
+| `JUDGE_LLM_MODEL` | Model name (e.g., `gpt-4o`) | Yes | - |
+| `JUDGE_LLM_ENDPOINT` | Custom API endpoint URL | No | `None` (uses OpenAI default) |
+| `JUDGE_LLM_TIMEOUT` | Request timeout in seconds | No | `60` |
+| `JUDGE_LLM_MAX_TOKENS` | Maximum tokens to generate | No | `None` (model default) |
+
+**Note on Timeout:**
+For complex reasoning or long outputs, increase `JUDGE_LLM_TIMEOUT`. The default is 60 seconds.
+
 ## Usage
 
 ### Sample YAML Test Case
