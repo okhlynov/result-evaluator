@@ -3,6 +3,8 @@ LLM operations runtime types.
 """
 import functools
 import inspect
+import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import ParamSpec, TypeVar
@@ -19,6 +21,8 @@ from openai import (
 from pydantic import ValidationError
 
 from .config import LLMConfig, load_llm_config
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -79,20 +83,28 @@ def with_llm_error_handling(func: Callable[P, Result[R]]) -> Callable[P, Result[
         try:
             return func(*args, **kwargs)
         except AuthenticationError:
+            logger.error("Authentication failed", exc_info=True)
             return Result.fail("connection", "Authentication failed: check JUDGE_LLM_API_KEY")
         except APITimeoutError:
+            logger.error("Request timeout", exc_info=True)
             return Result.fail("connection", f"Request timeout after {timeout_val}s")
         except APIConnectionError:
+            logger.error("Connection failed", exc_info=True)
             return Result.fail("connection", "Connection failed: check network/endpoint")
         except RateLimitError:
+            logger.error("Rate limit exceeded", exc_info=True)
             return Result.fail("connection", "Rate limit exceeded: wait before retrying")
         except NotFoundError:
+            logger.error(f"Model '{model_val}' not found", exc_info=True)
             return Result.fail("connection", f"Model '{model_val}' not found")
         except APIError as e:
+            logger.error("API error", exc_info=True)
             return Result.fail("response", f"API error: {str(e)}")
         except ValidationError as e:
+            logger.error("Validation error", exc_info=True)
             return Result.fail("validation", f"Response doesn't match schema: {str(e)}")
         except Exception as e:
+            logger.error("Unexpected error", exc_info=True)
             return Result.fail("response", f"Unexpected error: {str(e)}")
 
     return wrapper
@@ -106,6 +118,14 @@ def _execute_llm_request[T](
     config: LLMConfig,
 ) -> Result[T]:
     """Execute the OpenAI API request."""
+    if len(system_prompt) + len(user_prompt) > 100_000:
+        logger.warning(
+            "Large prompt detected: %d characters", 
+            len(system_prompt) + len(user_prompt)
+        )
+
+    start_time = time.time()
+
     client = OpenAI(
         api_key=config.api_key,
         base_url=config.endpoint,
@@ -120,6 +140,19 @@ def _execute_llm_request[T](
         ],
         response_format=response_type,
         max_tokens=config.max_tokens,
+    )
+    
+    latency_ms = int((time.time() - start_time) * 1000)
+    
+    logger.debug(
+        f"LLM call completed in {latency_ms}ms",
+        extra={"llm_call": {
+            "model": config.model,
+            "latency_ms": latency_ms,
+            "system_prompt_length": len(system_prompt),
+            "user_prompt_length": len(user_prompt),
+            "response_type": response_type.__name__
+        }}
     )
 
     parsed = completion.choices[0].message.parsed
