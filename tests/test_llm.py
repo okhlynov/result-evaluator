@@ -1,4 +1,3 @@
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -50,7 +49,9 @@ class MockResponse(BaseModel):
     message: str
 
 
-DUMMY_CONFIG = LLMConfig(api_key="test", model="test", endpoint="http://test", timeout=30, max_tokens=1000)
+DUMMY_CONFIG = LLMConfig(
+    api_key="test", model="test", endpoint="http://test", timeout=30, max_tokens=1000
+)
 
 
 def test_call_llm_openai_integration():
