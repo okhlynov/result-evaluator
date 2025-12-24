@@ -84,6 +84,28 @@ def test_llm_config_validation_empty_key() -> None:
         )
 
 
+def test_llm_config_validation_empty_model() -> None:
+    with pytest.raises(ValueError, match="Field cannot be empty or whitespace only"):
+        LLMConfig(
+            api_key="test-key",
+            model="  ",
+            endpoint="https://api.openai.com/v1",
+            timeout=60,
+            max_tokens=1000,
+        )
+
+
+def test_llm_config_validation_zero_timeout() -> None:
+    with pytest.raises(ValueError, match="Timeout must be a positive integer"):
+        LLMConfig(
+            api_key="test-key",
+            model="gpt-4",
+            endpoint="https://api.openai.com/v1",
+            timeout=0,
+            max_tokens=1000,
+        )
+
+
 def test_llm_config_validation_negative_timeout() -> None:
     with pytest.raises(ValueError, match="Timeout must be a positive integer"):
         LLMConfig(
