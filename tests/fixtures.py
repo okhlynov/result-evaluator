@@ -1,5 +1,12 @@
 """Test fixtures and helper functions for test cases."""
 
+from unittest.mock import Mock
+
+import pytest
+from openai import AuthenticationError
+from pydantic import BaseModel, ValidationError
+from pytest_mock import MockerFixture
+
 
 def dummy_inference(input_data: dict) -> dict:
     """Simple inference function that returns a constant dict for testing.
@@ -51,3 +58,56 @@ def rich_inference(input_data: dict) -> dict:
         },
         "items": ["item1", "item2", "item3", "item4", "item5"],
     }
+
+
+@pytest.fixture
+def mock_llm_success(mocker: MockerFixture) -> Mock:
+    """Fixture that returns a mock OpenAI client configured for success.
+
+    Returns:
+        Mock: Properly configured mock OpenAI client with successful response
+    """
+
+    class DefaultResponse(BaseModel):
+        message: str
+
+    mock_parsed = DefaultResponse(message="success")
+    mock_client = Mock()
+    mock_completion = Mock()
+    mock_completion.choices = [Mock(message=Mock(parsed=mock_parsed))]
+    mock_client.beta.chat.completions.parse.return_value = mock_completion
+
+    mocker.patch("result_evaluator.runtime.llm.OpenAI", return_value=mock_client)
+    return mock_client
+
+
+@pytest.fixture
+def mock_llm_connection_error(mocker: MockerFixture) -> Mock:
+    """Fixture that returns a mock OpenAI client that raises AuthenticationError.
+
+    Returns:
+        Mock: Properly configured mock OpenAI client raising AuthenticationError
+    """
+    mock_client = Mock()
+    mock_client.beta.chat.completions.parse.side_effect = AuthenticationError(
+        message="Authentication failed", response=Mock(), body={}
+    )
+
+    mocker.patch("result_evaluator.runtime.llm.OpenAI", return_value=mock_client)
+    return mock_client
+
+
+@pytest.fixture
+def mock_llm_validation_error(mocker: MockerFixture) -> Mock:
+    """Fixture that returns a mock OpenAI client that raises ValidationError.
+
+    Returns:
+        Mock: Properly configured mock OpenAI client raising ValidationError
+    """
+    mock_client = Mock()
+    # Pydantic's ValidationError requires some data to be instantiated properly
+    error = ValidationError.from_exception_data("Validation error", line_errors=[])
+    mock_client.beta.chat.completions.parse.side_effect = error
+
+    mocker.patch("result_evaluator.runtime.llm.OpenAI", return_value=mock_client)
+    return mock_client

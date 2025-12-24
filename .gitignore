@@ -91,3 +91,5 @@ workspace/
 development/issue-manager/.venv
 TASK.md
 CLAUDE.md
+.mcp.json
+GEMINI.md

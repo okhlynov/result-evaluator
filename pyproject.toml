@@ -11,6 +11,7 @@ dependencies = [
     "jsonpath-ng>=1.7.0",
     "pydantic>=2.11.10",
     "pyyaml>=6.0.3",
+    "openai>=1.0.0",
 ]
 
 [project.scripts]
@@ -25,6 +26,8 @@ dev = [
     "pytest>=8.4.2",
     "ruff>=0.13.1",
     "pyright>=1.1.390",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
 ]
 
 [tool.pytest.ini_options]
