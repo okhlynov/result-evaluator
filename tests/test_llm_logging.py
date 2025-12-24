@@ -23,7 +23,9 @@ def dummy_config() -> LLMConfig:
     )
 
 
-def test_call_llm_logging_success(caplog: pytest.LogCaptureFixture, dummy_config: LLMConfig):
+def test_call_llm_logging_success(
+    caplog: pytest.LogCaptureFixture, dummy_config: LLMConfig
+):
     """Test successful call logs correct info."""
     mock_client = MagicMock()
     mock_completion = MagicMock()
@@ -54,7 +56,9 @@ def test_call_llm_logging_success(caplog: pytest.LogCaptureFixture, dummy_config
             assert dummy_config.api_key not in caplog.text
 
 
-def test_call_llm_logging_error(caplog: pytest.LogCaptureFixture, dummy_config: LLMConfig):
+def test_call_llm_logging_error(
+    caplog: pytest.LogCaptureFixture, dummy_config: LLMConfig
+):
     """Test error call logs exception."""
     with patch("result_evaluator.runtime.llm.OpenAI") as mock_openai_cls:
         mock_instance = mock_openai_cls.return_value
@@ -68,7 +72,9 @@ def test_call_llm_logging_error(caplog: pytest.LogCaptureFixture, dummy_config: 
             assert any(record.exc_info for record in caplog.records)
 
 
-def test_call_llm_logging_large_prompt(caplog: pytest.LogCaptureFixture, dummy_config: LLMConfig):
+def test_call_llm_logging_large_prompt(
+    caplog: pytest.LogCaptureFixture, dummy_config: LLMConfig
+):
     """Test warning for large prompts."""
     large_prompt = "x" * 100_001
     mock_client = MagicMock()
