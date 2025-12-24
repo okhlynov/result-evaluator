@@ -3,8 +3,9 @@ LLM operations runtime types.
 """
 import functools
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 from openai import (
     APIConnectionError,
