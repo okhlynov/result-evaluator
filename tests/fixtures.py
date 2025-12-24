@@ -67,6 +67,7 @@ def mock_llm_success(mocker: MockerFixture) -> Mock:
     Returns:
         Mock: Properly configured mock OpenAI client with successful response
     """
+
     class DefaultResponse(BaseModel):
         message: str
 

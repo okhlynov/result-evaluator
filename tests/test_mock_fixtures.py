@@ -10,7 +10,7 @@ class MockResponse(BaseModel):
     message: str
 
 
-DUMMY_CONFIG = LLMConfig(api_key="test", model="test") # pyright: ignore[reportCallIssue]
+DUMMY_CONFIG = LLMConfig(api_key="test", model="test")  # pyright: ignore[reportCallIssue]
 
 
 def test_mock_llm_success_fixture(mock_llm_success: Mock) -> None:
@@ -18,7 +18,7 @@ def test_mock_llm_success_fixture(mock_llm_success: Mock) -> None:
     result = call_llm("sys", "user", MockResponse, config=DUMMY_CONFIG)
 
     assert result.success
-    assert result.value.message  == "success" # pyright: ignore[reportOptionalMemberAccess]
+    assert result.value.message == "success"  # pyright: ignore[reportOptionalMemberAccess]
     mock_llm_success.beta.chat.completions.parse.assert_called_once()
 
 
