@@ -39,7 +39,8 @@ def test_call_llm_authentication_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "connection"
         assert result.error == "Authentication failed: check JUDGE_LLM_API_KEY"
 
@@ -52,7 +53,8 @@ def test_call_llm_api_connection_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "connection"
         assert result.error == "Connection failed: check network/endpoint"
 
@@ -65,7 +67,8 @@ def test_call_llm_api_timeout_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "connection"
         assert result.error == f"Request timeout after {mock_config.timeout}s"
 
@@ -78,7 +81,8 @@ def test_call_llm_rate_limit_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "connection"
         assert result.error == "Rate limit exceeded: wait before retrying"
 
@@ -91,7 +95,8 @@ def test_call_llm_not_found_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "connection"
         assert result.error == f"Model '{mock_config.model}' not found"
 
@@ -104,7 +109,8 @@ def test_call_llm_api_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "response"
         assert "API error: Generic API error" in str(result.error)
 
@@ -124,7 +130,8 @@ def test_call_llm_validation_error(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "validation"
         assert "Response doesn't match schema" in str(result.error)
 
@@ -137,6 +144,7 @@ def test_call_llm_generic_exception(mock_config: LLMConfig):
 
         result = call_llm("sys", "user", MockResponse, config=mock_config)
 
-        assert not result.success
+        assert result.success is False
+        assert result.value is None
         assert result.error_type == "response"
         assert "Unexpected error: Boom!" in str(result.error)
