@@ -269,3 +269,18 @@ def test_call_llm_logging_large_prompt(caplog):
             
             assert "Large prompt detected" in caplog.text
             assert "100004" in caplog.text # 3 chars 'sys' + 100001 chars
+
+def test_call_llm_refusal():
+    """Test handling of refusal (parsed is None)."""
+    mock_client = MagicMock()
+    mock_completion = MagicMock()
+    mock_completion.choices = [MagicMock()]
+    mock_completion.choices[0].message.parsed = None # Refusal
+    mock_client.beta.chat.completions.parse.return_value = mock_completion
+    
+    with patch("result_evaluator.runtime.llm.OpenAI", return_value=mock_client):
+        result = call_llm("sys", "user", MockResponse, config=DUMMY_CONFIG)
+        
+        assert not result.success
+        assert result.error_type == "response"
+        assert "Model refused" in result.error
