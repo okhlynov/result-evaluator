@@ -1,4 +1,4 @@
-"""Tests for runtime Engine methods."""
+"Tests for runtime Engine methods."
 
 import pytest
 import yaml
@@ -501,7 +501,7 @@ asserts:
     expected: code-123
   - path: $.message
     op: match_regex
-    expected: '^Processing.*code-\\d+$'
+    expected: '^Processing.*code-\d+$'
   - path: $.tags
     op: contains
     expected: python
@@ -513,7 +513,7 @@ asserts:
     expected: 5
   - path: $.metadata.version
     op: match_regex
-    expected: '^\\d+\\.\\d+\\.\\d+$'
+    expected: '^\d+\.\d+\.\d+$'
 """
 
     yaml_data = yaml.safe_load(yaml_content)
@@ -579,3 +579,48 @@ asserts:
     # Fourth assertion: tags do NOT contain "testing" -> should FAIL
     assert result["asserts"][3]["ok"] is False
     assert "'testing' present in" in result["asserts"][3]["message"]
+
+
+def test_run_test_llm_judge_with_config_stub() -> None:
+    """Test that llm_judge operator with config parses correctly (stub implementation).
+
+    This test verifies that the config field is properly parsed and accessible,
+    even though the llm_judge operator execution is not yet implemented.
+    """
+    yaml_content = """
+case:
+  id: llm_judge_config_test
+  description: Test llm_judge operator with config
+input:
+  answer: "Paris is the capital of France"
+run:
+  kind: python
+  target: tests.fixtures.dummy_inference
+asserts:
+  - op: llm_judge
+    path: $.result
+    config:
+      prompt: "Is {input} semantically equivalent to {expected}?"
+      system_prompt: "You are a fair judge. Respond only with true or false."
+      response_path: "$.verdict"
+    expected: "dummy_output"
+"""
+
+    yaml_data = yaml.safe_load(yaml_content)
+    test_case = Scenario.model_validate(yaml_data)
+
+    # Verify the config was parsed correctly
+    assert len(test_case.asserts) == 1
+    assert test_case.asserts[0].op == "llm_judge"
+    assert test_case.asserts[0].config is not None
+    assert test_case.asserts[0].config["prompt"] == "Is {input} semantically equivalent to {expected}?"
+    assert test_case.asserts[0].config["system_prompt"] == "You are a fair judge. Respond only with true or false."
+    assert test_case.asserts[0].config["response_path"] == "$.verdict"
+
+    engine = Engine()
+    result = engine.run_test(test_case)
+
+    # Since llm_judge is not in OPERATORS, it should fail with "Unknown operator"
+    assert result["status"] == "FAIL"
+    assert result["asserts"][0]["ok"] is False
+    assert "Unknown operator: llm_judge" in result["asserts"][0]["message"]
