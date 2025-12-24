@@ -17,6 +17,7 @@ class AssertRule(BaseModel):
     path: str | None = None
     op: str
     expected: Any = None
+    config: dict[str, str] | None = None
     where: list["AssertRule"] | None = None
 
     # Композиции
