@@ -12,7 +12,7 @@ from openai import (
 from pydantic import BaseModel, ValidationError
 
 from result_evaluator.runtime.config import LLMConfig
-from result_evaluator.runtime.llm import call_llm
+from result_evaluator.runtime.llm import Result, call_llm
 
 
 def test_call_llm_validation_system_prompt_empty():
@@ -254,3 +254,19 @@ def test_call_llm_refusal():
         assert not result.success
         assert result.error_type == "response"
         assert "Model refused" in result.error
+
+
+def test_result_ok():
+    res = Result.ok("data")
+    assert res.success is True
+    assert res.value == "data"
+    assert res.error is None
+    assert res.error_type is None
+
+
+def test_result_fail():
+    res = Result.fail("connection", "timeout")
+    assert res.success is False
+    assert res.value is None
+    assert res.error == "timeout"
+    assert res.error_type == "connection"
