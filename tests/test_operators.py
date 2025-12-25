@@ -1,14 +1,27 @@
 """Tests for runtime operators."""
 
+import pytest
+from pytest_mock import MockerFixture
+
+from result_evaluator.runtime.llm import Result
 from result_evaluator.runtime.operators import (
+    OPERATORS,
+    LLMJudgeResponse,
     op_contains,
     op_equals,
     op_exists,
     op_length_ge,
+    op_llm_judge,
     op_match_regex,
     op_not_contains,
     op_sequence_in_order,
 )
+
+
+def test_operators_registry_contains_llm_judge() -> None:
+    """Test that llm_judge is registered in the OPERATORS dictionary."""
+    assert "llm_judge" in OPERATORS
+    assert OPERATORS["llm_judge"] is op_llm_judge
 
 
 def test_op_equals_str_equal() -> None:
@@ -344,7 +357,9 @@ def test_op_sequence_in_order_out_of_order() -> None:
     assert result.ok is False
     # When "A" is found, we look for "B" next, but "C" comes before "B"
     # So we find "B" second (skipping "C"), then we can't find "C" after that
-    assert "Expected item 'C' not found in order within first 3 items" in result.message
+    assert "Expected item 'C' not found in order within first 3 items" in (
+        result.message or ""
+    )
     assert result.got == ["A", "C", "B"]
 
 
@@ -354,7 +369,9 @@ def test_op_sequence_in_order_missing_item() -> None:
         ["A", "B", "X", "Y", "Z"], {"expected": {"data": ["A", "B", "C"], "limit": 4}}
     )
     assert result.ok is False
-    assert "Expected item 'C' not found in order within first 4 items" in result.message
+    assert "Expected item 'C' not found in order within first 4 items" in (
+        result.message or ""
+    )
     assert result.got == ["A", "B", "X", "Y", "Z"]
 
 
@@ -392,7 +409,7 @@ def test_op_sequence_in_order_empty_selection() -> None:
     """Test op_sequence_in_order with empty selection and non-empty expected."""
     result = op_sequence_in_order([], {"expected": {"data": ["A", "B"], "limit": 10}})
     assert result.ok is False
-    assert "Expected item 'A' not found within first 10 items" in result.message
+    assert "Expected item 'A' not found within first 10 items" in (result.message or "")
     assert result.got == []
 
 
@@ -425,7 +442,7 @@ def test_op_sequence_in_order_non_string_in_selection() -> None:
     """Test op_sequence_in_order with non-string items in selection."""
     result = op_sequence_in_order([1, 2, 3], {"expected": {"data": ["A"], "limit": 3}})
     assert result.ok is False
-    assert "Selection must be a list of strings, found int" in result.message
+    assert "Selection must be a list of strings, found int" in (result.message or "")
     assert result.got == [1, 2, 3]
 
 
@@ -435,7 +452,9 @@ def test_op_sequence_in_order_non_string_in_expected() -> None:
         ["A", "B"], {"expected": {"data": [1, 2], "limit": 3}}
     )
     assert result.ok is False
-    assert "All items in 'expected.data' must be strings, found int" in result.message
+    assert "All items in 'expected.data' must be strings, found int" in (
+        result.message or ""
+    )
     assert result.got == ["A", "B"]
 
 
@@ -445,9 +464,8 @@ def test_op_sequence_in_order_negative_limit() -> None:
         ["A", "B"], {"expected": {"data": ["A"], "limit": -1}}
     )
     assert result.ok is False
-    assert (
-        "Parameter 'expected.limit' must be a positive integer, got -1"
-        in result.message
+    assert "Parameter 'expected.limit' must be a positive integer, got -1" in (
+        result.message or ""
     )
     assert result.got == ["A", "B"]
 
@@ -456,8 +474,8 @@ def test_op_sequence_in_order_zero_limit() -> None:
     """Test op_sequence_in_order with zero limit."""
     result = op_sequence_in_order(["A", "B"], {"expected": {"data": ["A"], "limit": 0}})
     assert result.ok is False
-    assert (
-        "Parameter 'expected.limit' must be a positive integer, got 0" in result.message
+    assert "Parameter 'expected.limit' must be a positive integer, got 0" in (
+        result.message or ""
     )
     assert result.got == ["A", "B"]
 
@@ -496,3 +514,197 @@ def test_op_sequence_in_order_missing_limit_param() -> None:
     assert result.ok is False
     assert result.message == "Parameter 'expected' must contain 'limit' field"
     assert result.got == ["A", "B"]
+
+
+# ============================================================================
+# Tests for op_llm_judge
+# ============================================================================
+
+
+def test_op_llm_judge_missing_ground_truth() -> None:
+    """Test op_llm_judge fails when ground_truth parameter is missing."""
+    result = op_llm_judge("test selection", {})
+    assert result.ok is False
+    assert "ground_truth" in (result.message or "").lower()
+    assert result.got == "test selection"
+
+
+def test_op_llm_judge_expected_defaults_to_true(mocker: MockerFixture) -> None:
+    """Test op_llm_judge uses expected=True by default."""
+    mock_response = LLMJudgeResponse(verdict=True, reasoning="Match found")
+    mock_result = Result.ok(mock_response)
+
+    mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    result = op_llm_judge("test", {"ground_truth": "test"})
+    assert result.ok is True
+
+
+def test_op_llm_judge_verdict_match(mocker: MockerFixture) -> None:
+    """Test op_llm_judge succeeds when verdict matches expected."""
+    mock_response = LLMJudgeResponse(verdict=True, reasoning="Semantically equivalent")
+    mock_result = Result.ok(mock_response)
+
+    mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    result = op_llm_judge("actual", {"ground_truth": "expected", "expected": True})
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == "actual"
+
+
+def test_op_llm_judge_verdict_mismatch(mocker: MockerFixture) -> None:
+    """Test op_llm_judge fails when verdict doesn't match expected."""
+    mock_response = LLMJudgeResponse(verdict=False, reasoning="Different meanings")
+    mock_result = Result.ok(mock_response)
+
+    mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    result = op_llm_judge("actual", {"ground_truth": "expected", "expected": True})
+    assert result.ok is False
+    assert "Different meanings" in (result.message or "")
+    assert result.got == "actual"
+
+
+def test_op_llm_judge_serializes_dict(mocker: MockerFixture) -> None:
+    """Test op_llm_judge serializes dict selections correctly."""
+    mock_response = LLMJudgeResponse(verdict=True, reasoning="OK")
+    mock_result = Result.ok(mock_response)
+
+    mock_call_llm = mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    selection = {"key": "value"}
+    result = op_llm_judge(selection, {"ground_truth": "data"})
+
+    assert result.ok is True
+    # Verify call_llm was called with serialized data
+    assert mock_call_llm.called
+    call_args = mock_call_llm.call_args
+    # The user_prompt should contain serialized JSON
+    user_prompt = call_args[0][1]
+    assert '"key"' in user_prompt and '"value"' in user_prompt
+
+
+def test_op_llm_judge_serializes_non_dict(mocker: MockerFixture) -> None:
+    """Test op_llm_judge wraps non-dict selections in {"value": ...}."""
+    mock_response = LLMJudgeResponse(verdict=True, reasoning="OK")
+    mock_result = Result.ok(mock_response)
+
+    mock_call_llm = mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    result = op_llm_judge("simple string", {"ground_truth": "data"})
+
+    assert result.ok is True
+    # Verify call_llm was called with wrapped value
+    assert mock_call_llm.called
+    call_args = mock_call_llm.call_args
+    user_prompt = call_args[0][1]
+    assert '"simple string"' in user_prompt
+
+
+def test_op_llm_judge_size_warning(
+    mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test op_llm_judge logs warning for serialized selection > 50KB."""
+    mock_response = LLMJudgeResponse(verdict=True, reasoning="OK")
+    mock_result = Result.ok(mock_response)
+
+    mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    # Create selection that serializes to >50KB
+    large_selection = {"data": "x" * 60000}
+    result = op_llm_judge(large_selection, {"ground_truth": "data"})
+
+    assert result.ok is True
+    assert "50" in caplog.text or len(caplog.text) > 0  # Warning should be logged
+
+
+def test_op_llm_judge_uses_custom_prompts(mocker: MockerFixture) -> None:
+    """Test op_llm_judge uses custom prompts when provided."""
+    mock_response = LLMJudgeResponse(verdict=True, reasoning="OK")
+    mock_result = Result.ok(mock_response)
+
+    mock_call_llm = mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    params = {
+        "ground_truth": "expected_value",
+        "system_prompt": "Custom system: {actual} vs {ground_truth}",
+        "prompt": "Compare: {actual} with {ground_truth}",
+    }
+
+    result = op_llm_judge("actual_value", params)
+
+    assert result.ok is True
+    assert mock_call_llm.called
+    call_args = mock_call_llm.call_args
+    system_prompt = call_args[0][0]
+    user_prompt = call_args[0][1]
+    assert "Custom system" in system_prompt
+    assert "Compare" in user_prompt
+
+
+def test_op_llm_judge_invalid_prompt_format(mocker: MockerFixture) -> None:
+    """Test op_llm_judge fails with missing placeholder in custom prompt."""
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    params = {
+        "ground_truth": "expected",
+        "system_prompt": "Invalid: {missing_key}",
+    }
+
+    result = op_llm_judge("actual", params)
+
+    assert result.ok is False
+    msg = result.message or ""
+    assert "placeholder" in msg.lower() or "missing" in msg.lower()
+    assert result.got == "actual"
+
+
+def test_op_llm_judge_llm_call_fails(mocker: MockerFixture) -> None:
+    """Test op_llm_judge fails when LLM call returns error."""
+    mock_result = Result.fail("connection", "Connection timeout")
+
+    mocker.patch(
+        "result_evaluator.runtime.operators.call_llm", return_value=mock_result
+    )
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    result = op_llm_judge("actual", {"ground_truth": "expected"})
+
+    assert result.ok is False
+    assert "Connection timeout" in (result.message or "")
+    assert result.got == "actual"
+
+
+def test_op_llm_judge_serialization_error(mocker: MockerFixture) -> None:
+    """Test op_llm_judge fails when selection is not serializable."""
+    mocker.patch("result_evaluator.runtime.operators.load_llm_config")
+
+    # object() is not JSON serializable
+    non_serializable = object()
+    result = op_llm_judge(non_serializable, {"ground_truth": "data"})
+    msg = (result.message or "").lower()
+    assert result.ok is False
+    assert "serial" in msg or "json" in msg
+    assert result.got == non_serializable

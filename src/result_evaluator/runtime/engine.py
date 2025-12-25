@@ -61,7 +61,9 @@ class Engine:
         if not op_func:
             return False, f"Unknown operator: {rule.op}"
 
-        params = {"expected": rule.expected}
+        # Build params: merge config (if present) with expected
+        # Note: expected overwrites any config['expected'] - AssertRule.expected takes priority
+        params = {**(rule.config or {}), "expected": rule.expected}
         result: OpResult = op_func(selection, params)
 
         return result.ok, result.message or "OK"

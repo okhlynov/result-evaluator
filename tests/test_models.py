@@ -7,9 +7,7 @@ This module tests the Pydantic models directly, focusing on:
 - Config field behavior
 """
 
-import pytest
 import yaml
-from pydantic import ValidationError
 
 from result_evaluator.dsl.models import AssertRule
 
@@ -112,11 +110,11 @@ def test_assert_rule_config_in_composition() -> None:
     assert rule.op == "and"
     assert rule.all_ is not None
     assert len(rule.all_) == 2
-    
+
     assert rule.all_[0].op == "llm_judge"
     assert rule.all_[0].config is not None
     assert rule.all_[0].config["model"] == "gpt-4"
-    
+
     assert rule.all_[1].op == "regex"
     assert rule.all_[1].config is not None
     assert rule.all_[1].config["pattern"] == "^[A-Z]"

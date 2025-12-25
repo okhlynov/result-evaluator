@@ -1,0 +1,34 @@
+case:
+  id: semantic_match_electronics
+  description: Test semantic equivalence - Electronics matches Electronics & Technology
+
+input: {}
+
+run:
+  kind: python
+  target: tutorial.product_categories.get_product_categories
+  timeout_ms: 5000
+
+asserts:
+  - path: $
+    op: llm_judge    
+    config:
+      ground_truth: "Electronics"
+      system_prompt: |
+         Your job is to determine if the actual output has correspond item in a list of string. 
+         Use semantic meaning, the items may just from single domain, not exact wording.
+         Check each item in the list.         
+         You must format your response as a JSON object with the following fields:
+         - reasoning: string - here place your reasoning
+         - verdict: boolean - true if any element is mathched 
+         
+      prompt: | 
+        The  item to search is in value field of the json 
+        ```json
+        {ground_truth}'
+        ```
+        
+        The list to search is placed in the value field of the json
+        ```json
+        {actual}"
+        ```
