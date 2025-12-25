@@ -1,7 +1,35 @@
+import json
+import logging
 import re
 from collections.abc import Callable, Sized
 from dataclasses import dataclass
 from typing import Any
+
+from pydantic import BaseModel
+
+from .config import load_llm_config
+from .llm import call_llm
+
+logger = logging.getLogger(__name__)
+
+
+class LLMJudgeResponse(BaseModel):
+    """Pydantic model for structured LLM response with verdict and reasoning."""
+
+    verdict: bool
+    reasoning: str
+
+
+# Default prompt templates for LLM judge operator
+DEFAULT_SYSTEM_PROMPT = """You are a semantic equivalence judge. Analyze the actual output and ground truth to determine if they are semantically equivalent, even if they differ in structure or wording."""
+
+DEFAULT_USER_PROMPT = """Your task is to determine if the actual output semantically matches the ground truth.
+
+Actual output: {actual}
+Ground truth: {ground_truth}
+
+Consider: structural equivalence, semantic meaning, and logical correctness.
+Respond with your verdict and reasoning."""
 
 
 @dataclass
@@ -14,6 +42,91 @@ class OpResult:
 
 
 Operator = Callable[[Any, dict[str, Any]], OpResult]
+
+
+def _serialize_selection(selection: Any) -> str:
+    """Serialize selection data to JSON string for LLM consumption.
+
+    Args:
+        selection: Any Python object to serialize
+
+    Returns:
+        JSON string representation
+
+    Notes:
+        - Dict selections are serialized as-is
+        - Non-dict types (list, int, str, None, etc.) are wrapped in {"value": ...}
+          before serialization to preserve type information for the LLM
+    """
+    if isinstance(selection, dict):
+        return json.dumps(selection)
+    else:
+        return json.dumps({"value": selection})
+
+
+def _serialize_ground_truth(ground_truth: Any) -> str:
+    """Serialize ground truth data to JSON string for LLM consumption.
+
+    Args:
+        ground_truth: Any Python object to serialize
+
+    Returns:
+        JSON string representation
+
+    Notes:
+        - Complex types (dict, list) are serialized as-is
+        - Simple types are wrapped in {"value": ...} to maintain consistency
+    """
+    if isinstance(ground_truth, (dict, list)):
+        return json.dumps(ground_truth)
+    else:
+        return json.dumps({"value": ground_truth})
+
+
+def _build_prompts(
+    actual: str, ground_truth: str, params: dict[str, Any]
+) -> tuple[str, str]:
+    """Build system and user prompts for LLM judge.
+
+    Args:
+        actual: Serialized actual output string
+        ground_truth: Serialized ground truth string
+        params: Operator parameters containing optional custom prompts
+
+    Returns:
+        Tuple of (system_prompt, user_prompt)
+
+    Notes:
+        - Uses default templates if custom prompts not provided in params
+        - Custom prompts override defaults
+        - Handles KeyError for missing placeholders in custom prompts
+    """
+    # Extract custom prompts from params, if provided
+    custom_system_prompt = params.get("system_prompt")
+    custom_user_prompt = params.get("prompt")
+
+    # Use custom or default system prompt
+    if custom_system_prompt is not None:
+        try:
+            system_prompt = custom_system_prompt.format(actual=actual, ground_truth=ground_truth)
+        except KeyError as e:
+            raise ValueError(f"Missing placeholder {e} in custom system_prompt template") from e
+    else:
+        try:
+            system_prompt = DEFAULT_SYSTEM_PROMPT.format(actual=actual, ground_truth=ground_truth)
+        except KeyError:
+            system_prompt = DEFAULT_SYSTEM_PROMPT
+
+    # Use custom or default user prompt
+    if custom_user_prompt is not None:
+        try:
+            user_prompt = custom_user_prompt.format(actual=actual, ground_truth=ground_truth)
+        except KeyError as e:
+            raise ValueError(f"Missing placeholder {e} in custom user_prompt template") from e
+    else:
+        user_prompt = DEFAULT_USER_PROMPT.format(actual=actual, ground_truth=ground_truth)
+
+    return system_prompt, user_prompt
 
 
 def op_exists(selection: Any, _: dict[str, Any]) -> OpResult:
@@ -206,6 +319,71 @@ def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
     return OpResult(ok=ok, message=message, got=selection)
 
 
+def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
+    """LLM-based semantic equivalence judge using structured output."""
+    # Validate required ground_truth parameter
+    if "ground_truth" not in params:
+        return OpResult(
+            False, "Missing required parameter 'ground_truth'", selection
+        )
+
+    ground_truth = params["ground_truth"]
+    expected = params.get("expected", True)
+
+    # Serialize selection
+    try:
+        serialized_selection = _serialize_selection(selection)
+    except (TypeError, ValueError) as e:
+        return OpResult(
+            False, f"Error serializing selection: {str(e)}", selection
+        )
+
+    # Serialize ground truth
+    try:
+        serialized_ground_truth = _serialize_ground_truth(ground_truth)
+    except (TypeError, ValueError) as e:
+        return OpResult(
+            False, f"Error serializing ground truth: {str(e)}", selection
+        )
+
+    # Size guard: warn if serialized selection > 50KB
+    if len(serialized_selection) > 50000:
+        logger.warning(
+            "Serialized selection size: %d bytes (>50KB)",
+            len(serialized_selection),
+        )
+
+    # Build prompts
+    try:
+        system_prompt, user_prompt = _build_prompts(
+            serialized_selection, serialized_ground_truth, params
+        )
+    except ValueError as e:
+        return OpResult(False, str(e), selection)
+
+    # Call LLM
+    config = load_llm_config()
+    llm_result = call_llm(system_prompt, user_prompt, LLMJudgeResponse, config=config)
+
+    # Handle LLM call failure or empty response
+    if not llm_result.success or llm_result.value is None:
+        error_msg = llm_result.error or "Unknown LLM error"
+        return OpResult(
+            False, f"LLM judge error: {error_msg}", selection
+        )
+
+    # Compare verdict with expected
+    response = llm_result.value
+    if response.verdict == expected:
+        return OpResult(ok=True, message=None, got=selection)
+    else:
+        return OpResult(
+            ok=False,
+            message=f"Semantic mismatch: {response.reasoning}",
+            got=selection,
+        )
+
+
 # Реестр всех операторов
 OPERATORS: dict[str, Operator] = {
     "exists": op_exists,
@@ -215,4 +393,5 @@ OPERATORS: dict[str, Operator] = {
     "length_ge": op_length_ge,
     "match_regex": op_match_regex,
     "sequence_in_order": op_sequence_in_order,
+    "llm_judge": op_llm_judge,
 }

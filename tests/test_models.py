@@ -7,9 +7,7 @@ This module tests the Pydantic models directly, focusing on:
 - Config field behavior
 """
 
-import pytest
 import yaml
-from pydantic import ValidationError
 
 from result_evaluator.dsl.models import AssertRule
 
