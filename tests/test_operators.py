@@ -5,6 +5,7 @@ from pytest_mock import MockerFixture
 
 from result_evaluator.runtime.llm import Result
 from result_evaluator.runtime.operators import (
+    OPERATORS,
     LLMJudgeResponse,
     op_contains,
     op_equals,
@@ -15,6 +16,13 @@ from result_evaluator.runtime.operators import (
     op_not_contains,
     op_sequence_in_order,
 )
+
+
+def test_operators_registry_contains_llm_judge() -> None:
+    """Test that llm_judge is registered in the OPERATORS dictionary."""
+    assert "llm_judge" in OPERATORS
+    assert OPERATORS["llm_judge"] is op_llm_judge
+
 
 
 def test_op_equals_str_equal() -> None:
@@ -595,7 +603,7 @@ def test_op_llm_judge_serializes_non_dict(mocker: MockerFixture) -> None:
     assert '"simple string"' in user_prompt
 
 
-def test_op_llm_judge_size_warning(mocker: MockerFixture, caplog: pytest.LogCaptureFixture[str]) -> None:
+def test_op_llm_judge_size_warning(mocker: MockerFixture, caplog: pytest.LogCaptureFixture) -> None:
     """Test op_llm_judge logs warning for serialized selection > 50KB."""
     mock_response = LLMJudgeResponse(verdict=True, reasoning="OK")
     mock_result = Result.ok(mock_response)
