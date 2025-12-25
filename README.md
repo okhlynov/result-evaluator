@@ -398,6 +398,32 @@ asserts:
         Check if the key information is semantically equivalent, even if structure differs.
 ```
 
+## Tutorial
+
+New to result-evaluator or the `llm_judge` operator? Start with our interactive tutorial:
+
+```bash
+# Quick start (2 commands)
+source tutorial/ollama.env
+./tutorial/run_tutorial.sh
+
+# Run specific tests
+./tutorial/run_tutorial.sh "01-*.yaml"
+
+# Or use the runner directly
+PYTHONPATH=. uv run python tutorial/run_evaluator.py --dataset "01-*.yaml"
+```
+
+The tutorial demonstrates semantic validation using production-style YAML test cases and structured logging. You'll learn:
+- When to use `llm_judge` vs traditional operators
+- How to write declarative YAML test cases with the Engine
+- How to configure local Ollama for LLM-based testing
+- Production integration patterns with structured JSONL logging
+
+See **[TUTORIAL.md](TUTORIAL.md)** for the comprehensive guide.
+
+**Cost note**: The tutorial uses Ollama (free, runs locally). For production, you can switch to OpenAI API (paid).
+
 ### Assertion Composition
 
 Combine assertions with logical operators:
