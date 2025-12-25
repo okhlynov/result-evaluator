@@ -138,13 +138,17 @@ def with_llm_logging[**P, R](
                 len(system_prompt) + len(user_prompt),
             )
 
+        # Log the actual prompts at DEBUG level
+        logger.debug("LLM Call - System Prompt:\n%s", system_prompt)
+        logger.debug("LLM Call - User Prompt:\n%s", user_prompt)
+
         start_time = time.time()
         result = func(*args, **kwargs)
         latency_ms = int((time.time() - start_time) * 1000)
 
         if result.success and config:
             logger.debug(
-                f"LLM call completed in {latency_ms}ms",
+                "LLM call completed",
                 extra={
                     "llm_call": {
                         "model": config.model,
@@ -155,6 +159,12 @@ def with_llm_logging[**P, R](
                             getattr(response_type, "__name__", str(response_type))
                             if response_type is not None
                             else "unknown"
+                        ),
+                        "response": (
+                            result.value.model_dump()  # type: ignore[union-attr]
+                            if result.value is not None
+                            and hasattr(result.value, "model_dump")
+                            else result.value
                         ),
                     }
                 },

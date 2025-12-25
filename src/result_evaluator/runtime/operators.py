@@ -338,7 +338,9 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
         return OpResult(False, "Missing required parameter 'ground_truth'", selection)
 
     ground_truth = params["ground_truth"]
-    expected = params.get("expected", True)
+    expected = params.get("expected", True) 
+    if expected is None:
+        expected = True
 
     # Serialize selection
     try:
@@ -378,6 +380,17 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
 
     # Compare verdict with expected
     response = llm_result.value
+    logger.debug(
+                "LLM judge debug",
+                extra={
+                    "llm_call": {
+                        "model": config.model,
+                        "response": response.model_dump(),
+                        "expected": expected,
+                        "params" : params
+                    }
+                },
+            )
     if response.verdict == expected:
         return OpResult(ok=True, message=None, got=selection)
     else:
