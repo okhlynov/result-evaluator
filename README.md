@@ -97,14 +97,35 @@ These variables use the default prefix `JUDGE_LLM_` but can be customized in cod
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `JUDGE_LLM_API_KEY` | OpenAI API key | Yes | - |
+| `JUDGE_LLM_API_KEY` | OpenAI API key or LLM service API key | Yes | - |
 | `JUDGE_LLM_MODEL` | Model name (e.g., `gpt-4o`) | Yes | - |
-| `JUDGE_LLM_ENDPOINT` | Custom API endpoint URL | No | `None` (uses OpenAI default) |
+| `JUDGE_LLM_ENDPOINT` | Custom API endpoint URL (e.g., local Ollama) | No | `None` (uses OpenAI default) |
 | `JUDGE_LLM_TIMEOUT` | Request timeout in seconds | No | `60` |
 | `JUDGE_LLM_MAX_TOKENS` | Maximum tokens to generate | No | `None` (model default) |
 
 **Note on Timeout:**
 For complex reasoning or long outputs, increase `JUDGE_LLM_TIMEOUT`. The default is 60 seconds.
+
+### LLM Configuration Examples
+
+#### Using OpenAI (Default)
+
+```bash
+export JUDGE_LLM_API_KEY=sk-...
+export JUDGE_LLM_MODEL=gpt-4o
+export JUDGE_LLM_TIMEOUT=60
+```
+
+#### Using Local Ollama
+
+For local semantic validation using Ollama, configure these environment variables:
+
+```bash
+export JUDGE_LLM_BASE_URL=http://localhost:11434/v1
+export JUDGE_LLM_MODEL=llama3.2:latest
+export JUDGE_LLM_API_KEY=ollama  # Ollama doesn't require a real API key, but some value is needed
+export JUDGE_LLM_TIMEOUT=60  # Adjust for slower models
+```
 
 ## Usage
 
@@ -298,6 +319,85 @@ asserts:
       limit: 20
 ```
 
+#### `llm_judge` - Semantic equivalence validation using LLM
+
+Validates semantic equivalence between actual output and ground truth using an LLM. Unlike strict comparison operators (`equals`, `contains`), `llm_judge` can recognize semantically identical outputs that differ structurally or lexically.
+
+**Use case:** Validate that outputs are semantically correct even when they use different wording, structure, or phrasing.
+
+**Parameters:**
+- `ground_truth` (string | dict): Required. The expected value to compare against.
+- `expected` (bool): Optional, defaults to `true`. Set to `false` to test for semantic non-equivalence.
+- `prompt` (string): Optional. Custom user prompt template with `{actual}` and `{ground_truth}` placeholders.
+- `system_prompt` (string): Optional. Custom system prompt for the LLM.
+
+**Cost Considerations:** Each assertion using `llm_judge` makes an LLM API call. For OpenAI, this incurs API costs. Consider using `llm_judge` selectively for scenarios where semantic validation is necessary.
+
+**Example 1: Basic semantic string comparison**
+
+```yaml
+asserts:
+  - path: $.answer
+    op: llm_judge
+    config:
+      ground_truth: "Paris is the capital of France"
+```
+
+This will pass for outputs like:
+- "The capital city of France is Paris"
+- "Paris"
+- "France's capital is Paris"
+
+**Example 2: Testing for non-equivalence**
+
+```yaml
+asserts:
+  - path: $.answer
+    op: llm_judge
+    config:
+      ground_truth: "Paris is the capital of France"
+      expected: false  # Expecting semantic difference
+```
+
+This assertion passes only if the LLM determines the actual output is NOT semantically equivalent to the ground truth.
+
+**Example 3: Custom prompt template**
+
+```yaml
+asserts:
+  - path: $.summary
+    op: llm_judge
+    config:
+      ground_truth: "The user wants to build a search engine for documentation"
+      prompt: |
+        Does the actual summary accurately capture the essence of the ground truth requirement?
+
+        Actual summary: {actual}
+        Ground truth: {ground_truth}
+
+        Consider completeness, accuracy, and key details.
+```
+
+**Example 4: Comparing complex data structures**
+
+```yaml
+asserts:
+  - path: $.entities
+    op: llm_judge
+    config:
+      ground_truth:
+        person: "Marie Curie"
+        field: "Physics and Chemistry"
+        achievement: "Nobel Prize winner"
+      prompt: |
+        Compare the extracted entities with the ground truth.
+
+        Extracted: {actual}
+        Expected: {ground_truth}
+
+        Check if the key information is semantically equivalent, even if structure differs.
+```
+
 ### Assertion Composition
 
 Combine assertions with logical operators:
@@ -367,7 +467,6 @@ source .venv/bin/activate  # On Unix/macOS
 # .venv\Scripts\activate   # On Windows
 result-evaluator
 ```
-
 ## Development
 
 ### Setup Development Environment

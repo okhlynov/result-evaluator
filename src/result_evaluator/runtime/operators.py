@@ -108,23 +108,35 @@ def _build_prompts(
     # Use custom or default system prompt
     if custom_system_prompt is not None:
         try:
-            system_prompt = custom_system_prompt.format(actual=actual, ground_truth=ground_truth)
+            system_prompt = custom_system_prompt.format(
+                actual=actual, ground_truth=ground_truth
+            )
         except KeyError as e:
-            raise ValueError(f"Missing placeholder {e} in custom system_prompt template") from e
+            raise ValueError(
+                f"Missing placeholder {e} in custom system_prompt template"
+            ) from e
     else:
         try:
-            system_prompt = DEFAULT_SYSTEM_PROMPT.format(actual=actual, ground_truth=ground_truth)
+            system_prompt = DEFAULT_SYSTEM_PROMPT.format(
+                actual=actual, ground_truth=ground_truth
+            )
         except KeyError:
             system_prompt = DEFAULT_SYSTEM_PROMPT
 
     # Use custom or default user prompt
     if custom_user_prompt is not None:
         try:
-            user_prompt = custom_user_prompt.format(actual=actual, ground_truth=ground_truth)
+            user_prompt = custom_user_prompt.format(
+                actual=actual, ground_truth=ground_truth
+            )
         except KeyError as e:
-            raise ValueError(f"Missing placeholder {e} in custom user_prompt template") from e
+            raise ValueError(
+                f"Missing placeholder {e} in custom user_prompt template"
+            ) from e
     else:
-        user_prompt = DEFAULT_USER_PROMPT.format(actual=actual, ground_truth=ground_truth)
+        user_prompt = DEFAULT_USER_PROMPT.format(
+            actual=actual, ground_truth=ground_truth
+        )
 
     return system_prompt, user_prompt
 
@@ -323,9 +335,7 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
     """LLM-based semantic equivalence judge using structured output."""
     # Validate required ground_truth parameter
     if "ground_truth" not in params:
-        return OpResult(
-            False, "Missing required parameter 'ground_truth'", selection
-        )
+        return OpResult(False, "Missing required parameter 'ground_truth'", selection)
 
     ground_truth = params["ground_truth"]
     expected = params.get("expected", True)
@@ -334,17 +344,13 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
     try:
         serialized_selection = _serialize_selection(selection)
     except (TypeError, ValueError) as e:
-        return OpResult(
-            False, f"Error serializing selection: {str(e)}", selection
-        )
+        return OpResult(False, f"Error serializing selection: {str(e)}", selection)
 
     # Serialize ground truth
     try:
         serialized_ground_truth = _serialize_ground_truth(ground_truth)
     except (TypeError, ValueError) as e:
-        return OpResult(
-            False, f"Error serializing ground truth: {str(e)}", selection
-        )
+        return OpResult(False, f"Error serializing ground truth: {str(e)}", selection)
 
     # Size guard: warn if serialized selection > 50KB
     if len(serialized_selection) > 50000:
@@ -368,9 +374,7 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
     # Handle LLM call failure or empty response
     if not llm_result.success or llm_result.value is None:
         error_msg = llm_result.error or "Unknown LLM error"
-        return OpResult(
-            False, f"LLM judge error: {error_msg}", selection
-        )
+        return OpResult(False, f"LLM judge error: {error_msg}", selection)
 
     # Compare verdict with expected
     response = llm_result.value

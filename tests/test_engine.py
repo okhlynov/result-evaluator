@@ -614,8 +614,14 @@ asserts:
     assert len(test_case.asserts) == 1
     assert test_case.asserts[0].op == "llm_judge"
     assert test_case.asserts[0].config is not None
-    assert test_case.asserts[0].config["prompt"] == "Is {input} semantically equivalent to {expected}?"
-    assert test_case.asserts[0].config["system_prompt"] == "You are a fair judge. Respond only with true or false."
+    assert (
+        test_case.asserts[0].config["prompt"]
+        == "Is {input} semantically equivalent to {expected}?"
+    )
+    assert (
+        test_case.asserts[0].config["system_prompt"]
+        == "You are a fair judge. Respond only with true or false."
+    )
     assert test_case.asserts[0].config["response_path"] == "$.verdict"
 
     engine = Engine()
