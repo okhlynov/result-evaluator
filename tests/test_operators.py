@@ -14,6 +14,7 @@ from result_evaluator.runtime.operators import (
     op_llm_judge,
     op_match_regex,
     op_not_contains,
+    op_object_in_collection,
     op_sequence_in_order,
 )
 
@@ -708,3 +709,105 @@ def test_op_llm_judge_serialization_error(mocker: MockerFixture) -> None:
     assert result.ok is False
     assert "serial" in msg or "json" in msg
     assert result.got == non_serializable
+
+
+# ============================================================================
+# Tests for op_object_in_collection
+# ============================================================================
+
+
+def test_op_object_in_collection_flat_match() -> None:
+    """Test op_object_in_collection with simple flat object match returns success."""
+    collection = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+    result = op_object_in_collection(collection, {"expected": {"id": 2, "name": "Bob"}})
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == collection
+
+
+def test_op_object_in_collection_with_extra_fields() -> None:
+    """Test op_object_in_collection validates partial matching when actual has extra fields."""
+    collection = [
+        {"id": 1, "name": "Alice", "email": "alice@example.com", "age": 30},
+        {"id": 2, "name": "Bob"},
+    ]
+    result = op_object_in_collection(collection, {"expected": {"id": 1, "name": "Alice"}})
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == collection
+
+
+def test_op_object_in_collection_nested_match() -> None:
+    """Test op_object_in_collection validates nested object matching."""
+    collection = [
+        {"id": 1, "user": {"name": "Alice", "address": {"city": "NYC"}}},
+        {"id": 2, "user": {"name": "Bob", "address": {"city": "LA"}}},
+    ]
+    result = op_object_in_collection(
+        collection, {"expected": {"id": 2, "user": {"address": {"city": "LA"}}}}
+    )
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == collection
+
+
+def test_op_object_in_collection_no_match() -> None:
+    """Test op_object_in_collection validates failure with correct error message."""
+    collection = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+    result = op_object_in_collection(collection, {"expected": {"id": 3, "name": "Charlie"}})
+    assert result.ok is False
+    assert result.message == "No object in collection matches expected pattern"
+    assert result.got == collection
+
+
+def test_op_object_in_collection_empty_collection() -> None:
+    """Test op_object_in_collection validates empty list behavior."""
+    result = op_object_in_collection([], {"expected": {"id": 1}})
+    assert result.ok is False
+    assert result.message == "No object in collection matches expected pattern"
+    assert result.got == []
+
+
+def test_op_object_in_collection_invalid_selection_not_list() -> None:
+    """Test op_object_in_collection validates selection type error."""
+    selection = {"id": 1}
+    result = op_object_in_collection(selection, {"expected": {"id": 1}})
+    assert result.ok is False
+    assert result.message == "Selection must be a list, got dict"
+    assert result.got == selection
+
+
+def test_op_object_in_collection_invalid_expected_not_dict() -> None:
+    """Test op_object_in_collection validates expected parameter type error."""
+    collection = [{"id": 1, "name": "Alice"}]
+    result = op_object_in_collection(collection, {"expected": "not a dict"})
+    assert result.ok is False
+    assert result.message == "Parameter 'expected' must be a dict, got str"
+    assert result.got == collection
+
+
+def test_op_object_in_collection_empty_expected_pattern() -> None:
+    """Test op_object_in_collection validates empty dict error."""
+    collection = [{"id": 1, "name": "Alice"}]
+    result = op_object_in_collection(collection, {"expected": {}})
+    assert result.ok is False
+    assert result.message == "Parameter 'expected' cannot be empty"
+    assert result.got == collection
+
+
+def test_op_object_in_collection_mixed_types_error() -> None:
+    """Test op_object_in_collection validates mixed-type collection error."""
+    collection = [{"id": 1}, "not a dict", {"id": 2}]
+    result = op_object_in_collection(collection, {"expected": {"id": 1}})
+    assert result.ok is False
+    assert result.message == "All items in collection must be dicts, found str"
+    assert result.got == collection
+
+
+def test_op_object_in_collection_null_field_value() -> None:
+    """Test op_object_in_collection validates null field matching."""
+    collection = [{"id": 1, "value": None}, {"id": 2, "value": "data"}]
+    result = op_object_in_collection(collection, {"expected": {"id": 1, "value": None}})
+    assert result.ok is True
+    assert result.message is None
+    assert result.got == collection
