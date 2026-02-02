@@ -456,6 +456,184 @@ See **[TUTORIAL.md](TUTORIAL.md)** for the comprehensive guide.
 
 **Cost note**: The tutorial uses Ollama (free, runs locally). For production, you can switch to OpenAI API (paid).
 
+## Async and Sync Usage Patterns
+
+The Engine supports both synchronous and asynchronous execution modes, providing flexibility for different use cases while maintaining full backward compatibility.
+
+### Sync Mode (Backward Compatibility)
+
+**Use sync mode when:**
+- You have simple, sequential test execution
+- You're integrating with existing synchronous code
+- You don't need to manage event loops explicitly
+
+**Example: Basic sync usage (existing code continues working)**
+
+```python
+from result_evaluator import Engine, load_test_case
+
+# Load test case
+test_case = load_test_case("test_case.yaml")
+
+# Create engine and run test (sync mode)
+engine = Engine()
+result = engine.run_test(test_case)
+
+# Process results
+print(f"Status: {result['status']}")
+for assert_result in result['asserts']:
+    status = "✓" if assert_result['ok'] else "✗"
+    print(f"  {status} Assert {assert_result['index']}: {assert_result['message']}")
+```
+
+**Key points:**
+- No migration required - existing code works unchanged
+- No need to use `async`/`await` keywords
+- No need to manage event loops manually
+- Perfect for single test execution or simple scripts
+
+### Async Mode (Batch Processing)
+
+**Use async mode when:**
+- You're processing large datasets with many test cases
+- You want to leverage connection pooling for external services (e.g., LLM APIs)
+- You're already working in an async context
+- You need optimal performance for batch operations
+
+**Example: Efficient batch processing with single event loop**
+
+```python
+import asyncio
+from result_evaluator import Engine, load_test_case
+
+async def run_batch_evaluation(test_files: list[str]) -> list[dict]:
+    """Process multiple test cases efficiently in a single event loop."""
+    engine = Engine()
+    results = []
+
+    # Single event loop for all tests - preserves connection pooling
+    for test_file in test_files:
+        test_case = load_test_case(test_file)
+        result = await engine.run_test_async(test_case)
+        results.append(result)
+
+        # Log progress
+        print(f"Completed {test_case.case['id']}: {result['status']}")
+
+    return results
+
+# Run the batch evaluation
+test_files = [
+    "test_case_1.yaml",
+    "test_case_2.yaml",
+    "test_case_3.yaml",
+    # ... hundreds more
+]
+
+# Execute with asyncio
+results = asyncio.run(run_batch_evaluation(test_files))
+
+# Summary statistics
+passed = sum(1 for r in results if r['status'] == 'PASS')
+failed = sum(1 for r in results if r['status'] == 'FAIL')
+errors = sum(1 for r in results if r['status'] == 'ERROR')
+
+print(f"\nResults: {passed} passed, {failed} failed, {errors} errors")
+```
+
+**Performance benefits:**
+- **Single event loop**: One event loop for the entire batch preserves connection pooling
+- **Connection reuse**: HTTP clients maintain connections across test cases (critical for LLM APIs)
+- **Lower overhead**: No event loop creation/destruction for each test
+- **Efficient resource usage**: Better CPU and memory utilization for large datasets
+
+**Example: Async inference function (automatically detected)**
+
+```python
+import asyncio
+import httpx
+
+async def async_llm_inference(input_data: dict) -> dict:
+    """Async inference function - automatically detected and awaited."""
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.example.com/v1/completions",
+            json={"prompt": input_data["prompt"]},
+            timeout=30.0
+        )
+        return response.json()
+
+# In your test YAML:
+# run:
+#   kind: python
+#   target: my_module.async_llm_inference
+#
+# The Engine automatically detects this is an async function and awaits it
+```
+
+### Auto-Detection Mechanism
+
+The Engine automatically detects whether inference functions and operators are sync or async - **no manual configuration required**.
+
+**How it works:**
+1. Engine inspects the function using `inspect.iscoroutinefunction()`
+2. If async: `result = await func(input_data)`
+3. If sync: `result = func(input_data)`
+
+**This means:**
+- You can mix sync and async components freely
+- No configuration flags or manual declarations
+- Seamless transition from sync to async when needed
+- Zero breaking changes to existing code
+
+**Example: Mixed sync/async usage**
+
+```python
+# Sync inference function - works automatically
+def sync_inference(input_data: dict) -> dict:
+    return {"result": "processed"}
+
+# Async inference function - also works automatically
+async def async_inference(input_data: dict) -> dict:
+    await asyncio.sleep(0.1)  # Simulate async I/O
+    return {"result": "processed"}
+
+# Both work with the same Engine code:
+engine = Engine()
+
+# Sync mode - both functions work
+result1 = engine.run_test(test_case_with_sync_inference)
+result2 = engine.run_test(test_case_with_async_inference)
+
+# Async mode - both functions work
+result1 = await engine.run_test_async(test_case_with_sync_inference)
+result2 = await engine.run_test_async(test_case_with_async_inference)
+```
+
+### When to Choose Each Mode
+
+| Scenario | Recommended Mode | Reason |
+|----------|------------------|--------|
+| Single test execution | Sync | Simpler, no async overhead |
+| Interactive scripts/notebooks | Sync | Easier to use, no event loop management |
+| Small dataset (< 10 tests) | Sync | Performance difference negligible |
+| Large dataset (100+ tests) | Async | Connection pooling, better performance |
+| LLM-heavy workloads | Async | Reuses HTTP connections, reduces API latency |
+| Integration with async frameworks | Async | Avoids nested event loop errors |
+| Existing synchronous codebase | Sync | Zero migration required |
+
+### Migration Guide
+
+**Good news: No migration required!**
+
+Your existing synchronous code continues to work unchanged. When you're ready for async:
+
+1. Add `async def` to your wrapper function
+2. Change `engine.run_test(...)` to `await engine.run_test_async(...)`
+3. Run with `asyncio.run(...)` at the entry point
+
+That's it - no other changes needed.
+
 ### Assertion Composition
 
 Combine assertions with logical operators:
