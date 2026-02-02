@@ -731,7 +731,9 @@ def test_op_object_in_collection_with_extra_fields() -> None:
         {"id": 1, "name": "Alice", "email": "alice@example.com", "age": 30},
         {"id": 2, "name": "Bob"},
     ]
-    result = op_object_in_collection(collection, {"expected": {"id": 1, "name": "Alice"}})
+    result = op_object_in_collection(
+        collection, {"expected": {"id": 1, "name": "Alice"}}
+    )
     assert result.ok is True
     assert result.message is None
     assert result.got == collection
@@ -754,7 +756,9 @@ def test_op_object_in_collection_nested_match() -> None:
 def test_op_object_in_collection_no_match() -> None:
     """Test op_object_in_collection validates failure with correct error message."""
     collection = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
-    result = op_object_in_collection(collection, {"expected": {"id": 3, "name": "Charlie"}})
+    result = op_object_in_collection(
+        collection, {"expected": {"id": 3, "name": "Charlie"}}
+    )
     assert result.ok is False
     assert result.message == "No object in collection matches expected pattern"
     assert result.got == collection

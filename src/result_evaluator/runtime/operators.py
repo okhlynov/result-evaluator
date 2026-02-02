@@ -412,7 +412,9 @@ def op_object_in_collection(selection: Any, params: dict[str, Any]) -> OpResult:
         if _matches_pattern(item, expected):
             return OpResult(ok=True, message=None, got=selection)
     return OpResult(
-        ok=False, message="No object in collection matches expected pattern", got=selection
+        ok=False,
+        message="No object in collection matches expected pattern",
+        got=selection,
     )
 
 
