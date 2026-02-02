@@ -1,4 +1,6 @@
+import asyncio
 import importlib
+import inspect
 import logging
 from typing import Any
 
@@ -17,12 +19,23 @@ class Engine:
         self, run_config: RunConfig, input_data: dict[str, Any]
     ) -> dict[str, Any]:
         """Выполняет инференс согласно run конфигурации"""
+        return asyncio.run(self.run_inference_async(run_config, input_data))
+
+    async def run_inference_async(
+        self, run_config: RunConfig, input_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Выполняет инференс согласно run конфигурации (асинхронная версия)"""
         if run_config.kind == "python":
             # Импортируем функцию по пути module.function
             module_path, func_name = run_config.target.rsplit(".", 1)
             module = importlib.import_module(module_path)
             func = getattr(module, func_name)
-            return func(input_data)
+            # Auto-detect async vs sync function
+            if inspect.iscoroutinefunction(func):
+                result = await func(input_data)
+            else:
+                result = func(input_data)
+            return result
         else:
             raise NotImplementedError(f"Run kind '{run_config.kind}' not implemented")
 
@@ -33,15 +46,24 @@ class Engine:
         Выполняет одно утверждение.
         Возвращает (ok, message)
         """
+        return asyncio.run(self.eval_assert_async(rule, document))
+
+    async def eval_assert_async(
+        self, rule: AssertRule, document: dict[str, Any]
+    ) -> tuple[bool, str]:
+        """
+        Выполняет одно утверждение (асинхронная версия).
+        Возвращает (ok, message)
+        """
 
         if rule.all_:
-            results = [self.eval_assert(r, document) for r in rule.all_]
+            results = [await self.eval_assert_async(r, document) for r in rule.all_]
             all_ok = all(ok for ok, _ in results)
             messages = [msg for ok, msg in results if not ok]
             return all_ok, "; ".join(messages) if messages else "All checks passed"
 
         if rule.any_:
-            results = [self.eval_assert(r, document) for r in rule.any_]
+            results = [await self.eval_assert_async(r, document) for r in rule.any_]
             any_ok = any(ok for ok, _ in results)
             if any_ok:
                 return True, "At least one check passed"
@@ -49,7 +71,7 @@ class Engine:
             return False, f"None passed: {'; '.join(messages)}"
 
         if rule.not_:
-            ok, msg = self.eval_assert(rule.not_, document)
+            ok, msg = await self.eval_assert_async(rule.not_, document)
             return not ok, f"NOT failed: {msg}" if ok else "NOT passed"
 
         if not rule.path:
@@ -64,26 +86,29 @@ class Engine:
         # Build params: merge config (if present) with expected
         # Note: expected overwrites any config['expected'] - AssertRule.expected takes priority
         params = {**(rule.config or {}), "expected": rule.expected}
-        result: OpResult = op_func(selection, params)
+        if inspect.iscoroutinefunction(op_func):
+            result: OpResult = await op_func(selection, params)
+        else:
+            result: OpResult = op_func(selection, params)
 
         return result.ok, result.message or "OK"
 
-    def run_test(self, test_case: Scenario) -> dict[str, Any]:
-        """Выполняет один тест-кейс"""
+    async def run_test_async(self, test_case: Scenario) -> dict[str, Any]:
+        """Выполняет один тест-кейс (асинхронная версия)"""
         case_id = test_case.case.get("id", "unknown")
         print(f"\nRunning: {case_id}")
         logger.info(f"Starting test case: {case_id}")
 
         try:
             # Шаг 1: Запускаем инференс
-            result = self.run_inference(test_case.run, test_case.input)
+            result = await self.run_inference_async(test_case.run, test_case.input)
             print("Inference completed")
             logger.debug("Inference completed")
 
             # Шаг 2: Выполняем все проверки
             assert_results = []
             for i, assert_rule in enumerate(test_case.asserts):
-                ok, message = self.eval_assert(assert_rule, result)
+                ok, message = await self.eval_assert_async(assert_rule, result)
                 assert_results.append(
                     {
                         "index": i,
@@ -123,3 +148,7 @@ class Engine:
                 exc_info=True,
             )
             return error_result
+
+    def run_test(self, test_case: Scenario) -> dict[str, Any]:
+        """Выполняет один тест-кейс"""
+        return asyncio.run(self.run_test_async(test_case))
