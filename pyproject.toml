@@ -28,6 +28,7 @@ dev = [
     "pyright>=1.1.390",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
+    "pytest-asyncio>=0.21.0",
 ]
 
 [tool.pytest.ini_options]
@@ -35,6 +36,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 # Same as Black

@@ -60,6 +60,61 @@ def rich_inference(input_data: dict) -> dict:
     }
 
 
+async def async_dummy_inference(input_data: dict) -> dict:
+    """Async inference function that returns a constant dict for testing.
+
+    Args:
+        input_data: Input data dict (passed but not used in this dummy implementation)
+
+    Returns:
+        A constant dict with predefined structure
+    """
+    return {
+        "status": "async_success",
+        "result": "async_dummy_output",
+        "count": 99,
+    }
+
+
+async def async_echo_inference(input_data: dict) -> dict:
+    """Async inference function that echoes back the input data.
+
+    Args:
+        input_data: Input data dict to echo back
+
+    Returns:
+        Dict containing the original input wrapped in a result key
+    """
+    return {
+        "status": "async_success",
+        "input_received": input_data,
+    }
+
+
+def sync_error_inference(input_data: dict) -> dict:
+    """Sync inference function that raises an error for testing error handling.
+
+    Args:
+        input_data: Input data dict
+
+    Raises:
+        ValueError: Always raises this error for testing
+    """
+    raise ValueError("Sync inference error: invalid input")
+
+
+async def async_error_inference(input_data: dict) -> dict:
+    """Async inference function that raises an error for testing error handling.
+
+    Args:
+        input_data: Input data dict
+
+    Raises:
+        RuntimeError: Always raises this error for testing
+    """
+    raise RuntimeError("Async inference error: processing failed")
+
+
 @pytest.fixture
 def mock_llm_success(mocker: MockerFixture) -> Mock:
     """Fixture that returns a mock OpenAI client configured for success.
