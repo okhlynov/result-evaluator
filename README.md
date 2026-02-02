@@ -261,6 +261,38 @@ asserts:
     expected: "production"
 ```
 
+#### `object_in_collection` - Check if any object matches a pattern
+
+Validates that at least one object in a collection matches all fields defined
+in the expected pattern. Actual objects may contain extra fields, and nested
+objects are matched recursively.
+
+**Parameters:**
+- `expected` (dict): Required. Non-empty object pattern to match against.
+
+**Notes:**
+- The selection must be a list of objects (dicts). Mixed types fail.
+- Empty collections fail.
+- Extra fields in actual objects are ignored.
+
+```yaml
+asserts:
+  # Match object by multiple fields in the same collection item
+  - path: $.items
+    op: object_in_collection
+    expected:
+      id: 2
+      status: "active"
+
+  # Nested object pattern match
+  - path: $.users
+    op: object_in_collection
+    expected:
+      profile:
+        name: "Bob"
+        verified: true
+```
+
 #### `length_ge` - Check if length is greater than or equal
 
 ```yaml
@@ -604,4 +636,3 @@ This project leverages modern Python 3.12 features:
 - PEP 695 type parameter syntax
 - Modern type hints
 - Type statement for type aliases
-

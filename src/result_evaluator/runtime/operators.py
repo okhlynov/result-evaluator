@@ -331,6 +331,91 @@ def op_sequence_in_order(selection: Any, params: dict[str, Any]) -> OpResult:
     return OpResult(ok=ok, message=message, got=selection)
 
 
+def _matches_pattern(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Check if actual dict matches expected pattern with partial matching.
+
+    Args:
+        actual: The actual object to check
+        expected: The expected pattern to match against
+
+    Returns:
+        True if all fields in expected exist in actual with matching values
+
+    Notes:
+        - Supports partial matching (actual may have extra fields)
+        - Handles nested dicts recursively
+        - Handles primitive values via equality check
+    """
+    for key, expected_value in expected.items():
+        if key not in actual:
+            return False
+        actual_value = actual[key]
+        if isinstance(expected_value, dict) and isinstance(actual_value, dict):
+            if not _matches_pattern(actual_value, expected_value):
+                return False
+        elif actual_value != expected_value:
+            return False
+    return True
+
+
+def op_object_in_collection(selection: Any, params: dict[str, Any]) -> OpResult:
+    """Check if collection contains an object matching the expected pattern.
+
+    Validates that at least one object in the selection collection matches
+    all fields specified in the expected pattern. Supports partial matching
+    (actual objects may contain extra fields) and nested object structures.
+
+    Args:
+        selection: The collection to search (must be a list)
+        params: Parameters dict containing:
+            - expected (dict): Object pattern to match against
+
+    Returns:
+        OpResult with ok=True if match found, ok=False if no match or validation error
+
+    Notes:
+        - All items in selection must be dicts (error on mixed types)
+        - Expected pattern must be non-empty dict
+        - Uses recursive pattern matching for nested objects
+        - Extra fields in actual objects are ignored
+        - Null values match only explicit null in actual object
+    """
+    if "expected" not in params:
+        return OpResult(False, "Missing required parameter 'expected'", selection)
+    expected = params["expected"]
+    if not isinstance(expected, dict):
+        return OpResult(
+            False,
+            f"Parameter 'expected' must be a dict, got {type(expected).__name__}",
+            selection,
+        )
+    if len(expected) == 0:
+        return OpResult(False, "Parameter 'expected' cannot be empty", selection)
+    if not isinstance(selection, list):
+        return OpResult(
+            False,
+            f"Selection must be a list, got {type(selection).__name__}",
+            selection,
+        )
+    if len(selection) == 0:
+        return OpResult(
+            False, "No object in collection matches expected pattern", selection
+        )
+    for item in selection:
+        if not isinstance(item, dict):
+            return OpResult(
+                False,
+                f"All items in collection must be dicts, found {type(item).__name__}",
+                selection,
+            )
+    for item in selection:
+        if _matches_pattern(item, expected):
+            return OpResult(ok=True, message=None, got=selection)
+    return OpResult(
+        ok=False, message="No object in collection matches expected pattern", got=selection
+    )
+
+
 def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
     """LLM-based semantic equivalence judge using structured output."""
     # Validate required ground_truth parameter
@@ -338,7 +423,7 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
         return OpResult(False, "Missing required parameter 'ground_truth'", selection)
 
     ground_truth = params["ground_truth"]
-    expected = params.get("expected", True) 
+    expected = params.get("expected", True)
     if expected is None:
         expected = True
 
@@ -381,16 +466,16 @@ def op_llm_judge(selection: Any, params: dict[str, Any]) -> OpResult:
     # Compare verdict with expected
     response = llm_result.value
     logger.debug(
-                "LLM judge debug",
-                extra={
-                    "llm_call": {
-                        "model": config.model,
-                        "response": response.model_dump(),
-                        "expected": expected,
-                        "params" : params
-                    }
-                },
-            )
+        "LLM judge debug",
+        extra={
+            "llm_call": {
+                "model": config.model,
+                "response": response.model_dump(),
+                "expected": expected,
+                "params": params,
+            }
+        },
+    )
     if response.verdict == expected:
         return OpResult(ok=True, message=None, got=selection)
     else:
@@ -410,5 +495,6 @@ OPERATORS: dict[str, Operator] = {
     "length_ge": op_length_ge,
     "match_regex": op_match_regex,
     "sequence_in_order": op_sequence_in_order,
+    "object_in_collection": op_object_in_collection,
     "llm_judge": op_llm_judge,
 }
