@@ -1,10 +1,9 @@
 """Product categorization function for tutorial demonstration."""
 
-
 from typing import Any
 
 
-def get_product_categories(_: dict[str,Any]) -> list[str]:
+def get_product_categories(_: dict[str, Any]) -> list[str]:
     """Return list of product categories for e-commerce platform.
 
     This function returns a fixed list of product categories with semantic
